@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "497800878238",
+    "firebase_url": "https://pawsearch-dc88a.firebaseio.com",
+    "project_id": "pawsearch-dc88a",
+    "storage_bucket": "pawsearch-dc88a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:497800878238:android:98afd276b57b5ade94838f",
+        "android_client_info": {
+          "package_name": "com.fyp.pawsearch"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "497800878238-d0cvcn047b0qq6djd3308s49n9q9gqeu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fyp.pawsearch",
+            "certificate_hash": "ed6f77e19b99ffe1932585abe3c276e8529421a4"
+          }
+        },
+        {
+          "client_id": "497800878238-eib1akb18urg451ibmap1v8qdqieadip.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8QqYDQs7eyzv4SpA3ibKC-qOvJwT_p-Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "497800878238-eib1akb18urg451ibmap1v8qdqieadip.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

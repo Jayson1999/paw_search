@@ -1,0 +1,24 @@
+0 British Shorthair Cat
+1 Other Cats
+2 Persian Cat
+3 Siamese Cat
+4 Sphynx
+5 Beagle
+6 Bulldog
+7 Chihuahua
+8 Corgi
+9 Dachshund
+10 Dalmatian
+11 German Shepherd
+12 Golden Retriever
+13 Husky
+14 Pariah & Other Mixed Dogs
+15 Pomeranian
+16 Poodle
+17 Pug
+18 Samoyed
+19 Shiba Inu
+20 Shih Tzu
+21 Roborovski Hamster
+22 Syrian Hamster
+23 Winter White & Campbell's Dwarf Hamster
