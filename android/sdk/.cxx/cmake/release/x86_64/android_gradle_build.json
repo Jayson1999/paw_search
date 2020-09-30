@@ -1,0 +1,41 @@
+
+{
+	"buildFiles" : 
+	[
+		"D:/Users/HP/Documents/Documents/Degree/FYP/paw_search/android/sdk/libcxx_helper/CMakeLists.txt"
+	],
+	"cleanCommands" : 
+	[
+		"C:\\Users\\HP\\AppData\\Local\\Android\\sdk\\cmake\\3.6.4111459\\bin\\cmake.exe --build D:\\Users\\HP\\Documents\\Documents\\Degree\\FYP\\paw_search\\android\\sdk\\.cxx\\cmake\\release\\x86_64 --target clean"
+	],
+	"cppFileExtensions" : [ "cpp" ],
+	"libraries" : 
+	{
+		"opencv_jni_shared-Release-x86_64" : 
+		{
+			"abi" : "x86_64",
+			"artifactName" : "opencv_jni_shared",
+			"buildCommand" : "C:\\Users\\HP\\AppData\\Local\\Android\\sdk\\cmake\\3.6.4111459\\bin\\cmake.exe --build D:\\Users\\HP\\Documents\\Documents\\Degree\\FYP\\paw_search\\android\\sdk\\.cxx\\cmake\\release\\x86_64 --target opencv_jni_shared",
+			"buildType" : "release",
+			"files" : 
+			[
+				
+				{
+					"flags" : "  --target=x86_64-none-linux-android21 --gcc-toolchain=C:/Users/HP/AppData/Local/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/windows-x86_64 --sysroot=C:/Users/HP/AppData/Local/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/windows-x86_64/sysroot    -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -DNDEBUG  -fPIC    -c ",
+					"src" : "D:/Users/HP/Documents/Documents/Degree/FYP/paw_search/android/sdk/libcxx_helper/dummy.cpp",
+					"workingDirectory" : "D:/Users/HP/Documents/Documents/Degree/FYP/paw_search/android/sdk/.cxx/cmake/release/x86_64"
+				}
+			],
+			"output" : "D:/Users/HP/Documents/Documents/Degree/FYP/paw_search/android/sdk/.cxx/cmake/release/x86_64/libopencv_jni_shared.a",
+			"toolchain" : "2560267611"
+		}
+	},
+	"toolchains" : 
+	{
+		"2560267611" : 
+		{
+			"cCompilerExecutable" : "C:/Users/HP/AppData/Local/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe",
+			"cppCompilerExecutable" : "C:/Users/HP/AppData/Local/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe"
+		}
+	}
+}

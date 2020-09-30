@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class Loading extends StatelessWidget {
   @override
@@ -17,14 +16,10 @@ class Loading extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.all(Radius.circular(20.0))),
                 backgroundColor: Colors.white,
-                content: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 100.0, bottom: 100.0),
-                    child: SpinKitWanderingCubes(
-                      color: Colors.blueGrey[900],
-                    ),
-                  ),
-                ),
+                content: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Center(child: Image.asset("assets/images/loading.gif")),
+                )
               ),
             ],
       )),

@@ -7,14 +7,25 @@ class Database{
   Database(this._uid);
 
   final CollectionReference userCollection = Firestore.instance.collection("User");
-  final CollectionReference promoCollection = Firestore.instance.collection("Promo");
 
   //Update / Add user document
-  Future updateUser(String name, String hp) async {
-    return await userCollection.document(_uid).setData({
+  Future<String> setUser(String name, String hp) async {
+    bool error = false;
+    String errorMsg = "";
+    await userCollection.document(_uid).setData({
       'name' : name,
       'hp' : hp,
+    })
+        .catchError((onError){
+          error = true;
+          errorMsg = onError.toString();
     });
+    if(!error) {
+      return "OK";
+    }
+    else{
+      return errorMsg;
+    }
   }
 
   //Get User data

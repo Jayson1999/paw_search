@@ -21,12 +21,10 @@ void main() {
 class PawSearchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-//    return StreamProvider<FirebaseUser>.value(
-//        value: FireAuth().user,
-//        child: Wrapper()
-//    );
-
-  return Home();
+    return StreamProvider<FirebaseUser>.value(
+        value: FireAuth().user,
+        child: Wrapper()
+    );
   }
 }
 
