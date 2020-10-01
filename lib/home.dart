@@ -24,6 +24,7 @@ class _State extends State<Home> {
   FireAuth _auth = FireAuth();
   User _user = new User();
   Future getUser;
+  String type = "lost";
 
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<
       ScaffoldState>(); //Scaffold key to show Scaffold widgets of Bottom Sheet and SnackBar
@@ -38,8 +39,6 @@ class _State extends State<Home> {
   double _imageWidth;
   double _imageHeight;
   File croppedImg;
-
-  var classification; //Store Classification Result
 
   @override
   void initState() {
@@ -61,10 +60,14 @@ class _State extends State<Home> {
               barrierDismissible: false,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20.0)),
                   title: Row(
                     children: <Widget>[
-                      Icon(Icons.cancel,color: Colors.redAccent,),
+                      Icon(
+                        Icons.cancel,
+                        color: Colors.redAccent,
+                      ),
                       Text(" No Account Found!"),
                     ],
                   ),
@@ -75,7 +78,7 @@ class _State extends State<Home> {
                   actions: <Widget>[
                     FlatButton(
                       child: Text("Ok"),
-                      onPressed: (){
+                      onPressed: () {
                         Navigator.pop(context);
                       },
                     )
@@ -130,14 +133,29 @@ class _State extends State<Home> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
                             !imgSelected
+                                ? Container()
+                                : Center(
+                                    child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      "Selected Image: ",
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 24),
+                                    ),
+                                  )),
+                            !imgSelected
                                 ? Image.asset(
                                     "assets/images/gallery.png",
                                   )
-                                : FadeInImage(
-                                    placeholder:
-                                        Image.asset("assets/images/loading.gif")
-                                            .image,
-                                    image: Image.file(_image).image,
+                                : Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: FadeInImage(
+                                      placeholder: Image.asset(
+                                              "assets/images/loading.gif")
+                                          .image,
+                                      image: Image.file(_image).image,
+                                    ),
                                   ),
                             Padding(
                               padding: const EdgeInsets.all(12.0),
@@ -209,21 +227,6 @@ class _State extends State<Home> {
                                     ),
                                   )
                                 : Container(),
-                            imgSelected
-                                ? RaisedButton(
-                                    child: Text(
-                                        "Classification Without Image Processing"),
-                                    onPressed: () {
-                                      findType(context);
-                                    },
-                                  )
-                                : Container(),
-                            RaisedButton(
-                              child: Text("OpenCV"),
-                              onPressed: () async {
-                                await _getOpenCVResult();
-                              },
-                            )
                           ],
                         ),
                       ),
@@ -380,14 +383,18 @@ class _State extends State<Home> {
           child: FlatButton(
             color: Colors.transparent,
             onPressed: () async {
-              showLoadingDialog(context, "Cropping Image");
+              showLoadingDialog(context, "Processing & Cropping Image");
               //Conduct Image Cropping on Box Select
               croppedImg = await FlutterNativeImage.cropImage(
-                  _image.path,
-                  (re["rect"]["x"] * _imageWidth).floor(),
-                  (re["rect"]["y"] * _imageHeight).floor(),
-                  (re["rect"]["w"] * _imageWidth).floor(),
-                  (re["rect"]["h"] * _imageHeight).floor());
+                      _image.path,
+                      (re["rect"]["x"] * _imageWidth).floor(),
+                      (re["rect"]["y"] * _imageHeight).floor(),
+                      (re["rect"]["w"] * _imageWidth).floor(),
+                      (re["rect"]["h"] * _imageHeight).floor())
+                  .catchError((onError) {
+                Navigator.pop(context);
+                print("Crop Failed! Rect not found! " + onError.toString());
+              });
               Navigator.pop(context);
 
               showDialog(
@@ -429,12 +436,13 @@ class _State extends State<Home> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius:
                                           BorderRadius.circular(10.0)),
-                                  onPressed: () {
+                                  onPressed: () async {
                                     setState(() {
                                       _image = croppedImg;
                                     });
                                     Navigator.pop(context1);
-                                    //TODO:Next Image Processing
+                                    Navigator.pop(context);
+                                    //Conduct Image Classification on Cropped Image
                                     findType(context);
                                   },
                                   icon: Icon(
@@ -520,7 +528,53 @@ class _State extends State<Home> {
               ),
             ),
             RaisedButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                showDialog(
+                    context: context,
+                    builder: (BuildContext context1) {
+                      return AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.0)),
+                        title: Row(
+                          children: <Widget>[
+                            Icon(Icons.notification_important,color: Colors.amber,),
+                            Text(" Reminder",
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        content: Text(
+                            "Please be advised that Proceeding with the Whole Image may affect accuracy of the search. You can choose to Go Back and Select another image or Proceed Anyway"),
+                        actions: <Widget>[
+                          RaisedButton.icon(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20.0)),
+                            icon: Icon(Icons.arrow_forward_ios,
+                                color: Colors.white),
+                            label: Text("Proceed Anyway",
+                                style: TextStyle(color: Colors.white)),
+                            onPressed: () {
+                              Navigator.pop(context1);
+                              //Proceed Image Classification without cropping
+                              findType(context);
+                            },
+                            color: Colors.redAccent,
+                          ),
+                          RaisedButton.icon(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20.0)),
+                            icon: Icon(Icons.backspace, color: Colors.white),
+                            label: Text("Go Back",
+                                style: TextStyle(color: Colors.white)),
+                            onPressed: () {
+                              //Cancel Image Classification and Proceed to change new image
+                              Navigator.pop(context1);
+                            },
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ],
+                      );
+                    });
+              },
               icon: Icon(
                 Icons.image,
                 color: Colors.white,
@@ -583,8 +637,8 @@ class _State extends State<Home> {
     });
 
     //Conduct OpenCV img processing before classification
-
     //TODO:Remove unwanted classifications, Add second processing here (OPENCV, segmentation, threshold, compare), Create OOP Class
+
     var recognitions = await Tflite.runModelOnImage(
         path: _image.path, // required
         imageMean: 0.0, // defaults to 117.0
@@ -593,6 +647,10 @@ class _State extends State<Home> {
         asynch: true // defaults to true
         );
 
+    //Close loading dialog box on getting result
+    Navigator.pop(context);
+
+    var classification; //Store Classification Result
     double highestConf = 0;
     //Post-processing 3 (Remove lower than 50% confidence classification)
     recognitions.forEach((element) {
@@ -602,16 +660,62 @@ class _State extends State<Home> {
       }
     });
 
+    //When Class found
     if (classification != null) {
-      print("First run whole results: " + recognitions.toString());
       //First result with first model
-      print("First highest result " + classification["label"]);
+      print("Whole results: " + recognitions.toString());
+      print("Highest result " + classification["label"]);
+
+      //Remove Labelling number and Empty space in front
+      String breed = classification["label"]
+          .toString()
+          .replaceAll(RegExp(r'\d+'), "")
+          .trimLeft();
+
+      //Show dialog with filtered class & ask for option before proceeding to OpenCV module
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: <Widget>[Icon(Icons.adb,color: Colors.greenAccent,), Text(" Detected Class: ")],
+              ),
+              content: Text(breed +
+                  " detected with " +
+                  (classification["confidence"] * 100).toStringAsFixed(2) +
+                  "% confidence."),
+              actions: <Widget>[
+                FlatButton.icon(
+                    onPressed: () {
+                      _getOpenCVResult(breed);
+                    },
+                    icon: Icon(Icons.arrow_forward_ios),
+                    label: Text(
+                      "Search for Pet",
+                      style: TextStyle(color: Colors.blue),
+                    )),
+                FlatButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.cancel, color: Colors.redAccent),
+                    label: Text(
+                      "Cancel",
+                      style: TextStyle(color: Colors.red),
+                    )),
+              ],
+            );
+          });
     }
 
     //If no class-match found
     else {
       _scaffoldKey.currentState.showSnackBar(SnackBar(
+        backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 5),
         content: Text(
           "Are you sure this is a pet image?\n We could not find any related breed on the image...Maybe try another pet image.",
           textAlign: TextAlign.center,
@@ -619,17 +723,16 @@ class _State extends State<Home> {
       ));
     }
 
-    //Close dialog box on getting result
-    Navigator.pop(context);
-
     //Close and release Tensorflow Lite after Classification
     await Tflite.close();
   }
 
   //Function to invoke Android's OpenCV method from Android platform
-  Future<void> _getOpenCVResult() async {
+  Future<void> _getOpenCVResult(String breed) async {
     try {
-      await MethodChannel("openCVChannel").invokeMethod('opencvComparison');
+      //Pass search type, breed, image while invoking method
+      await MethodChannel("openCVChannel").invokeMethod('opencvComparison',
+          {"breed": breed, "type": type, "imageSrc": _image.toString()});
     } on PlatformException catch (e) {
       print("Failed to get opencv result: '${e.message}'.");
     }
