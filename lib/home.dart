@@ -10,6 +10,7 @@ import 'package:flutter_native_image/flutter_native_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pawsearch/loading.dart';
 import 'package:pawsearch/user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tflite/tflite.dart';
 
 import 'firebase/auth.dart';
@@ -24,7 +25,8 @@ class _State extends State<Home> {
   FireAuth _auth = FireAuth();
   User _user = new User();
   Future getUser;
-  String type = "lost";
+  String type;
+  SharedPreferences pref;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<
       ScaffoldState>(); //Scaffold key to show Scaffold widgets of Bottom Sheet and SnackBar
@@ -53,7 +55,7 @@ class _State extends State<Home> {
           .collection("User")
           .document(value.uid.toString())
           .get()
-          .then((_value) {
+          .then((_value) async {
         if (_value.data == null) {
           showDialog(
               context: context,
@@ -89,6 +91,9 @@ class _State extends State<Home> {
           //Sign Out false user without register at first
           _auth.signOutUser();
         } else {
+          //Sign in User and write UID to SharedPreferences
+          pref = await SharedPreferences.getInstance();
+          pref.setString("uid", value.uid.toString());
           _user.name = _value.data["name"];
           _user.hp = _value.data["hp"];
           print(_user.name);
@@ -117,6 +122,12 @@ class _State extends State<Home> {
                       backgroundImage: AssetImage("assets/images/pawslogo.png"),
                     ),
                   ),
+                  actions: <Widget>[
+                    IconButton(
+                      icon: Icon(Icons.account_circle,color: Colors.white,),
+                      onPressed: (){},
+                    )
+                  ],
                   title: Text(
                     "Welcome " + _user.name + "!",
                     style: TextStyle(fontWeight: FontWeight.bold),
@@ -162,7 +173,7 @@ class _State extends State<Home> {
                               child: imgSelected
                                   ? Container()
                                   : Text(
-                                      "Select an Image of Your Pet for Pet Searching",
+                                      "Select an Image of The Pet for Pet Searching",
                                       style: TextStyle(fontSize: 26),
                                       textAlign: TextAlign.center,
                                     ),
@@ -193,34 +204,159 @@ class _State extends State<Home> {
                                           color: Theme.of(context).primaryColor)
                                       : TextStyle(color: Colors.white),
                                 )),
+                            RaisedButton.icon(
+                                onPressed: () {
+                                  getFromCam();
+                                },
+                                elevation: 6,
+                                color: imgSelected
+                                    ? Colors.white
+                                    : Theme.of(context).primaryColor,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                icon: imgSelected
+                                    ? Icon(
+                                  Icons.camera_alt,
+                                  color: Theme.of(context).primaryColor,
+                                )
+                                    : Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                ),
+                                label: Text(
+                                  "Take from Camera",
+                                  style: imgSelected
+                                      ? TextStyle(
+                                      color: Theme.of(context).primaryColor)
+                                      : TextStyle(color: Colors.white),
+                                )),
                             imgSelected
                                 ? Padding(
                                     padding: const EdgeInsets.only(
-                                        left: 8.0, right: 8.0, top: 20),
+                                        left: 8.0, right: 8.0, top: 20, bottom: 20),
                                     child: Container(
                                       width: MediaQuery.of(context).size.width,
                                       child: RaisedButton.icon(
-                                          onPressed: () async {
-                                            showLoadingDialog(
-                                                context, "Processing Image");
-                                            await predictLocation(
-                                                _image); //Conduct Object Detection
-                                            Navigator.pop(context);
-                                            //Display Object Detections in Bottom Sheet
-                                            _scaffoldKey.currentState
-                                                .showBottomSheet(
-                                                    (context) => searchSheet());
+                                          onPressed: () {
+                                            //Select Search Type Option before proceeding
+                                            showDialog(
+                                                barrierDismissible: false,
+                                                context: context,
+                                                builder:
+                                                    (BuildContext innerContext) {
+                                                  return AlertDialog(
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                    title: Row(
+                                                      children: <Widget>[
+                                                        ImageIcon(Image.asset(
+                                                                "assets/images/pawslogoflattened.png")
+                                                            .image),
+                                                        Text(
+                                                            " Select an Option")
+                                                      ],
+                                                    ),
+                                                    content: SingleChildScrollView(
+                                                      child: Column(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: <Widget>[
+                                                          Text("The app will conduct search on the database before allowing to file a new report on both functions."),
+                                                          Container(
+                                                            width: 150,
+                                                            child: FittedBox(
+                                                              child: RaisedButton.icon(
+                                                                shape: RoundedRectangleBorder(
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(
+                                                                                20)),
+                                                                icon: Icon(
+                                                                  Icons.search,
+                                                                  color: Colors.white,
+                                                                ),
+                                                                label: Text(
+                                                                  "I Lost a Pet",
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .white),
+                                                                  textAlign: TextAlign.justify,
+                                                                ),
+                                                                color:
+                                                                    Theme.of(context)
+                                                                        .primaryColor,
+                                                                onPressed: () async {
+                                                                  type = "lost";
+                                                                  Navigator.pop(innerContext);
+                                                                  showLoadingDialog(
+                                                                      context,
+                                                                      "Processing Image");
+                                                                  await predictLocation(
+                                                                      _image); //Conduct Object Detection
+                                                                  Navigator.pop(
+                                                                      context);
+                                                                  //Display Object Detections in Bottom Sheet
+                                                                  _scaffoldKey
+                                                                      .currentState
+                                                                      .showBottomSheet(
+                                                                          (context) =>
+                                                                              searchSheet());
+                                                                },
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          Container(
+                                                            width: 150,
+                                                            child: FittedBox(
+                                                              child: RaisedButton.icon(
+                                                                shape: RoundedRectangleBorder(
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(
+                                                                                20)),
+                                                                icon: Icon(
+                                                                    Icons.pets,color: Colors.white,),
+                                                                label: Text(
+                                                                  "I Found a Pet",
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .white),
+                                                                ),
+                                                                color: Colors.blue,
+                                                                onPressed: () async {
+                                                                  type = "found";
+                                                                  Navigator.pop(innerContext);
+                                                                  showLoadingDialog(
+                                                                      context,
+                                                                      "Processing Image");
+                                                                  await predictLocation(
+                                                                      _image); //Conduct Object Detection
+                                                                  Navigator.pop(
+                                                                      context);
+                                                                  //Display Object Detections in Bottom Sheet
+                                                                  _scaffoldKey
+                                                                      .currentState
+                                                                      .showBottomSheet(
+                                                                          (context) =>
+                                                                              searchSheet());
+                                                                },
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                });
                                           },
                                           shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(20.0)),
                                           elevation: 6,
                                           color: Theme.of(context).primaryColor,
-                                          icon: Icon(
-                                            Icons.search,
+                                          icon: ImageIcon(
+                                            Image.asset("assets/images/pawslogoflattened.png").image,
                                             color: Colors.white,
                                           ),
-                                          label: Text("Begin Search",
+                                          label: Text("Begin Process",
                                               style: TextStyle(
                                                 color: Colors.white,
                                               ))),
@@ -245,10 +381,24 @@ class _State extends State<Home> {
   Future getImage() async {
     final pickedFile = await picker.getImage(source: ImageSource.gallery);
 
-    setState(() {
-      _image = File(pickedFile.path);
-      imgSelected = true;
-    });
+    if(pickedFile!=null) {
+      setState(() {
+        _image = File(pickedFile.path);
+        imgSelected = true;
+      });
+    }
+  }
+
+  //Function to take image from camera
+  Future getFromCam() async{
+    final pickedFile = await picker.getImage(source: ImageSource.camera);
+
+    if(pickedFile!=null) {
+      setState(() {
+        _image = File(pickedFile.path);
+        imgSelected = true;
+      });
+    }
   }
 
   //Function to show Loading Dialog
@@ -537,7 +687,10 @@ class _State extends State<Home> {
                             borderRadius: BorderRadius.circular(20.0)),
                         title: Row(
                           children: <Widget>[
-                            Icon(Icons.notification_important,color: Colors.amber,),
+                            Icon(
+                              Icons.notification_important,
+                              color: Colors.amber,
+                            ),
                             Text(" Reminder",
                                 style: TextStyle(fontWeight: FontWeight.bold)),
                           ],
@@ -680,7 +833,12 @@ class _State extends State<Home> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
               title: Row(
-                children: <Widget>[Icon(Icons.adb,color: Colors.greenAccent,), Text(" Detected Class: ")],
+                children: <Widget>[
+                  ImageIcon(
+                    Image.asset("assets/images/pawslogoflattened.png").image,
+                  ),
+                  Text(" Detected Class: ")
+                ],
               ),
               content: Text(breed +
                   " detected with " +
@@ -691,7 +849,7 @@ class _State extends State<Home> {
                     onPressed: () {
                       _getOpenCVResult(breed);
                     },
-                    icon: Icon(Icons.arrow_forward_ios),
+                    icon: Icon(Icons.search),
                     label: Text(
                       "Search for Pet",
                       style: TextStyle(color: Colors.blue),

@@ -5,17 +5,22 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -32,11 +37,15 @@ import com.bumptech.glide.request.target.Target;
 import com.bumptech.glide.request.transition.Transition;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.UploadTask;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -54,12 +63,19 @@ import org.opencv.features2d.Features2d;
 import org.opencv.features2d.ORB;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.res.ResourcesCompat;
+import io.flutter.plugins.firebase.storage.FirebaseStoragePlugin;
 
 
 public class OpenCVActivity extends Activity {
@@ -78,19 +94,28 @@ public class OpenCVActivity extends Activity {
     private TextView loading;
     private TextView date;
     private Button contact;
+    private Button report;
+    private Button goBack;
     private Dialog dialog;
 
+    private File file;
     private Bitmap targetImage;
     private String breed;
     private String searchType;
     private int index = 0;
     private double highestMatch = 0.0;
     private QueryDocumentSnapshot highestPet;
+    private SharedPreferences pref;
+    private String uid;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_open_c_v);
+
+        //initialize SharedPreference UID
+        pref = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE);
+        uid = pref.getString("flutter.uid", "Can't find the UID");
 
         //custom App Bar
         getActionBar().setTitle("Image Matching");
@@ -103,6 +128,17 @@ public class OpenCVActivity extends Activity {
         pb = (ImageView) findViewById(R.id.loadingPB);
         date = (TextView) findViewById(R.id.date);
         contact = (Button) findViewById(R.id.contact);
+        report = (Button) findViewById(R.id.report);
+        goBack = (Button) findViewById(R.id.goback);
+
+        //Go back to Flutter
+        goBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
+
         //Load loading asset on build created
         Glide.with(OpenCVActivity.this).load(R.drawable.loading).listener(new RequestListener<Drawable>() {
             @Override
@@ -129,7 +165,7 @@ public class OpenCVActivity extends Activity {
         boolean error = false;
         String fileName = getIntent().getStringExtra("imageSrc").split("cache/")[1];
         fileName = fileName.substring(0,fileName.length()-1);   //Remove ' apostrophe
-        File file = new File("/data/data/com.fyp.pawsearch/cache/",fileName);
+        file = new File("/data/data/com.fyp.pawsearch/cache/",fileName);
         //Check through all available cache directories
         if(!file.exists()){
             file = new File(this.getExternalCacheDir(),fileName);
@@ -224,11 +260,12 @@ public class OpenCVActivity extends Activity {
                         loading.setText("Unfortunately...currently we do not have any "+searchType+" report on " + breed);
                         loading.setTextColor(Color.parseColor("#FF5252"));
                         loading.setTextSize(16);
-                        contact.setText("Go Back");
-                        contact.setOnClickListener(new View.OnClickListener() {
+                        report.setVisibility(View.VISIBLE);
+                        report.setEnabled(true);
+                        report.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
-                                finish();
+                                reportDialog();
                             }
                         });
                     }
@@ -340,6 +377,15 @@ public class OpenCVActivity extends Activity {
                     @Override
                     public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                         if(task.isSuccessful()){
+                            report.setVisibility(View.VISIBLE);
+                            report.setEnabled(true);
+                            report.setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View v) {
+                                    reportDialog();
+                                }
+                            });
+                            contact.setVisibility(View.VISIBLE);
                             contact.setEnabled(true);
                             contact.setText("View Contact of "+task.getResult().getString("name"));
                             contact.setOnClickListener(new View.OnClickListener() {
@@ -366,8 +412,41 @@ public class OpenCVActivity extends Activity {
                                     hpTV.setTextSize(16);
                                     hpTV.setPadding(36,32,36,32);
 
+                                    LinearLayout.LayoutParams phoneParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
+                                    phoneParams.setMargins(8,8,8,32);
+                                    ImageButton phone = new ImageButton(OpenCVActivity.this);
+                                    phone.setImageResource(android.R.drawable.sym_action_call);
+                                    phone.setBackgroundResource(R.drawable.roundedbutton);
+                                    phone.setLayoutParams(phoneParams);
+                                    phone.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+                                            Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + task.getResult().getString("hp")));
+                                            startActivity(intent);
+                                        }
+                                    });
+
+                                    LinearLayout.LayoutParams waParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
+                                    waParams.setMargins(8,0,8,0);
+                                    ImageButton whatsapp = new ImageButton(OpenCVActivity.this);
+                                    whatsapp.setImageResource(R.drawable.walogo);
+                                    whatsapp.setBackgroundResource(R.drawable.roundedbutton);
+                                    whatsapp.setAdjustViewBounds(true);
+                                    whatsapp.setMaxHeight(150);
+                                    whatsapp.setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+                                            String url = "https://api.whatsapp.com/send?phone="+task.getResult().getString("hp");
+                                            Intent i = new Intent(Intent.ACTION_VIEW);
+                                            i.setData(Uri.parse(url));
+                                            startActivity(i);
+                                        }
+                                    });
+
                                     ll.addView(nameTV);
                                     ll.addView(hpTV);
+                                    ll.addView(phone);
+                                    ll.addView(whatsapp);
                                     sv.addView(ll);
                                     //Show dialog
                                     AlertDialog contactDialog;
@@ -391,6 +470,166 @@ public class OpenCVActivity extends Activity {
                         }
                     }
                 });
+
+    }
+
+    //Function to file report
+    private void reportDialog(){
+        //Set report layout with views
+        AlertDialog dialog;
+        ScrollView sv = new ScrollView(OpenCVActivity.this);
+        sv.setFillViewport(true);
+        LinearLayout ll = new LinearLayout(OpenCVActivity.this);
+        ll.setOrientation(LinearLayout.VERTICAL);
+        ll.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(32,32,32,32);
+        params.gravity = Gravity.CENTER;
+
+        ProgressBar pb = new ProgressBar(OpenCVActivity.this,null,android.R.attr.progressBarStyleHorizontal);
+        pb.setVisibility(View.GONE);
+
+        TextView progressTV = new TextView(OpenCVActivity.this);
+        progressTV.setTextColor(Color.parseColor("#263238"));
+        progressTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
+        progressTV.setPadding(0,0,0,32);
+        progressTV.setGravity(Gravity.CENTER);
+
+        ImageView petImage = new ImageView(OpenCVActivity.this);
+        petImage.setImageBitmap(targetImage);
+        petImage.setPadding(0,32,0,32);
+        petImage.setAdjustViewBounds(true);
+        petImage.setMaxHeight(800);
+
+        TextView reportType = new TextView(OpenCVActivity.this);
+        if(searchType.equals("Lost")){
+            reportType.setText("Report Type : "+"Found Report");
+        }
+        else{
+            reportType.setText("Report Type : "+"Lost Report");
+        }
+        reportType.setTextColor(Color.parseColor("#263238"));
+        reportType.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
+        reportType.setPadding(0,0,0,32);
+        reportType.setGravity(Gravity.CENTER);
+
+        TextView postDate = new TextView(OpenCVActivity.this);
+        Date c = Calendar.getInstance().getTime();
+        SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a", Locale.getDefault());
+        String formattedDate = df.format(c);
+        postDate.setText("Date : "+formattedDate);
+        postDate.setTextColor(Color.parseColor("#263238"));
+        postDate.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
+        postDate.setPadding(0,0,0,32);
+        postDate.setGravity(Gravity.CENTER);
+
+        TextView breedTV = new TextView(OpenCVActivity.this);
+        breedTV.setText("Breed Class : "+breed);
+        breedTV.setTextColor(Color.parseColor("#263238"));
+        breedTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
+        breedTV.setPadding(0,0,0,32);
+        breedTV.setGravity(Gravity.CENTER);
+
+        TextView postOwner = new TextView(OpenCVActivity.this);
+        postOwner.setText("Post Owner UID : "+uid);
+        postOwner.setTextColor(Color.parseColor("#263238"));
+        postOwner.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
+        postOwner.setPadding(0,0,0,32);
+        postOwner.setGravity(Gravity.CENTER);
+
+        ll.setLayoutParams(params);
+        ll.addView(pb);
+        ll.addView(progressTV);
+        ll.addView(petImage);
+        ll.addView(reportType);
+        ll.addView(postDate);
+        ll.addView(breedTV);
+        ll.addView(postOwner);
+        sv.addView(ll);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(OpenCVActivity.this);
+        builder.setTitle("File New Report")
+                .setIcon(android.R.drawable.ic_menu_edit)
+                .setMessage("\nThe Report will share the following details to our database to help the pet. Click on Confirm to Agree.")
+                .setView(sv)
+                .setPositiveButton("Confirm", null)
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        dialog = builder.create();
+        dialog.show();
+        dialog.getWindow().setBackgroundDrawableResource(R.drawable.roundeddialog);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.parseColor("#FF5252"));
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#2196F3"));
+        //On Confirm Clicked, Conduct Upload
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.parseColor("#D3D3D3"));
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#D3D3D3"));
+                pb.setVisibility(View.VISIBLE);
+                String rptType;
+                if(searchType.equals("Lost")){
+                    rptType = "Found";
+                }
+                else{
+                    rptType = "Lost";
+                }
+                FirebaseStorage.getInstance().getReference().child(rptType+"Images/"+formattedDate).putFile(Uri.fromFile(file))
+                        .addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                            @Override
+                            public void onProgress(@NonNull UploadTask.TaskSnapshot taskSnapshot) {
+                                double progress = (100.00*taskSnapshot.getBytesTransferred())/taskSnapshot.getTotalByteCount();
+                                pb.setProgress((int)progress);
+                                progressTV.setText("Uploading...("+String.format("%.2f", progress)+"%) "+taskSnapshot.getBytesTransferred()+"/"+taskSnapshot.getTotalByteCount()+"bytes");
+                            }
+                        })
+                        .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                            @Override
+                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                //Add to database on upload succeed
+                                Task<Uri> downloadUrl = taskSnapshot.getStorage().getDownloadUrl();
+                                while (!downloadUrl.isSuccessful());
+                                if(downloadUrl.isSuccessful()){
+                                    Uri url = downloadUrl.getResult();
+                                    Map<String, Object> petReport = new HashMap<>();
+                                    petReport.put("url", url.toString());
+                                    petReport.put("breed", breed);
+                                    petReport.put("foundDate", formattedDate);
+                                    petReport.put("postOwner", pref.getString("flutter.uid","Can't find UID"));
+                                    FirebaseFirestore.getInstance().collection(rptType).document(formattedDate).set(petReport)
+                                            .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                @Override
+                                                public void onComplete(@NonNull Task<Void> task) {
+                                                    if(task.isSuccessful()){
+                                                        //Close dialog when upload is done
+                                                        dialog.dismiss();
+                                                        Toast.makeText(OpenCVActivity.this, "Report succesfully filed to Database!", Toast.LENGTH_SHORT).show();
+                                                    }
+                                                }
+                                            })
+                                            .addOnFailureListener(new OnFailureListener() {
+                                                @Override
+                                                public void onFailure(@NonNull Exception e) {
+                                                    Toast.makeText(OpenCVActivity.this, "Add to DB failed: "+e.toString(), Toast.LENGTH_LONG).show();
+                                                }
+                                            });
+                                }
+                            }
+                        })
+                        .addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception e) {
+                                Toast.makeText(OpenCVActivity.this, "Upload Failed: "+e.toString(), Toast.LENGTH_LONG).show();
+                            }
+                        });
+            }
+        });
 
     }
 

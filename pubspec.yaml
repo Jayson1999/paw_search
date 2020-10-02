@@ -32,6 +32,7 @@ dependencies:
   tflite: ^1.1.1
   flutter_native_image: ^0.0.5+2
   country_code_picker: ^1.5.0
+  shared_preferences: ^0.5.12
 
   flutter_test:
     sdk: flutter
