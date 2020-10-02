@@ -1,24 +1,21 @@
 package com.fyp.pawsearch;
 
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -35,6 +32,12 @@ import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.target.Target;
 import com.bumptech.glide.request.transition.Transition;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -74,11 +77,13 @@ import java.util.Map;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.res.ResourcesCompat;
+import androidx.fragment.app.FragmentActivity;
 import io.flutter.plugins.firebase.storage.FirebaseStoragePlugin;
 
 
-public class OpenCVActivity extends Activity {
+public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallback {
 
     //global variables
     ORB detector;
@@ -107,19 +112,26 @@ public class OpenCVActivity extends Activity {
     private QueryDocumentSnapshot highestPet;
     private SharedPreferences pref;
     private String uid;
+    private GoogleMap mapAPI;
+    private SupportMapFragment mapFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_open_c_v);
 
-        //initialize SharedPreference UID
-        pref = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE);
-        uid = pref.getString("flutter.uid", "Can't find the UID");
-
         //custom App Bar
         getActionBar().setTitle("Image Matching");
         getActionBar().setIcon(android.R.drawable.ic_menu_search);
+
+        //initialize Google Map & Location
+        mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.mapAPI);
+        mapFragment.getMapAsync(this::onMapReady);
+        //mapFragment.getView().setVisibility(View.GONE);
+
+        //initialize SharedPreference UID
+        pref = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE);
+        uid = pref.getString("flutter.uid", "Can't find the UID");
 
         //initialize view
         matchIV = (ImageView) findViewById(R.id.matchIV);
@@ -370,6 +382,12 @@ public class OpenCVActivity extends Activity {
                 return false;
             }
         }).into(matchIV);
+
+        //Show Pet Location on Google map
+        LatLng latLng = new LatLng(Double.parseDouble(highestPet.getString("location").split(", ")[0]), Double.parseDouble(highestPet.getString("location").split(", ")[1]));
+        MarkerOptions options = new MarkerOptions().position(latLng).title("Pet Location");
+        mapAPI.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,15));
+        mapAPI.addMarker(options);
 
         //Get Post Owner Name from database
         FirebaseFirestore.getInstance().collection("User").document(highestPet.getString("postOwner")).get()
@@ -676,4 +694,21 @@ public class OpenCVActivity extends Activity {
         }
     };
 
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mapAPI = googleMap;
+    }
+
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if(requestCode == 69){
+            if(grantResults.length>0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+
+            }
+        }
+    }
 }

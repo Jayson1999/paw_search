@@ -31,6 +31,8 @@ class _State extends State<Home> {
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<
       ScaffoldState>(); //Scaffold key to show Scaffold widgets of Bottom Sheet and SnackBar
 
+  ScrollController _scrollController;
+  bool profSelected = false; //Track if profile is clicked
   bool imgSelected = false; //Track if any image is selected for UI changes
   String loadingMsg = "Loading Model..."; //Global reusable Loading Message
 
@@ -46,6 +48,15 @@ class _State extends State<Home> {
   void initState() {
     super.initState();
     getUser = checkUser(); //Initialize checking during startup
+    _scrollController = new ScrollController();
+    //Listen to Scrolling, collapse Profile on scroll
+    _scrollController.addListener(() {
+      if(_scrollController.offset>=_scrollController.position.maxScrollExtent && !_scrollController.position.outOfRange){
+        setState(() {
+          profSelected=false;
+        });
+      }
+    });
   }
 
   //function to check for validated user
@@ -113,8 +124,8 @@ class _State extends State<Home> {
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           return WillPopScope(
-            onWillPop: exitDialog,
-            child: Scaffold(
+              onWillPop: exitDialog,
+              child: Scaffold(
                 key: _scaffoldKey,
                 appBar: AppBar(
                   leading: Center(
@@ -124,12 +135,24 @@ class _State extends State<Home> {
                   ),
                   actions: <Widget>[
                     IconButton(
-                      icon: Icon(Icons.account_circle,color: Colors.white,),
-                      onPressed: (){},
+                      icon: Icon(
+                        !profSelected?Icons.account_circle:Icons.keyboard_arrow_up,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          if(profSelected){
+                            profSelected = false;
+                          }
+                          else {
+                            profSelected = true;
+                          }
+                        });
+                      },
                     )
                   ],
                   title: Text(
-                    "Welcome " + _user.name + "!",
+                    !profSelected?"Welcome " + _user.name + "!":"Profile",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   centerTitle: true,
@@ -139,10 +162,40 @@ class _State extends State<Home> {
                     height: MediaQuery.of(context).size.height,
                     child: Center(
                       child: SingleChildScrollView(
+                        controller: _scrollController,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
+                            AnimatedContainer(    //Expandable layout to display Profile
+                              color: Theme.of(context).primaryColor,
+                              duration:Duration(milliseconds: 250),
+                              width: profSelected?MediaQuery.of(context).size.width:0,
+                              height: profSelected?160:0,
+                              child: SingleChildScrollView(
+                                child: Container(
+                                  height: 160,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: <Widget>[
+                                      Padding(
+                                        padding: const EdgeInsets.only(left:30, bottom:8.0),
+                                        child: Text("Name: "+_user.name,style: TextStyle(color: Colors.white,fontSize: 16),),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(left:30,bottom:8.0),
+                                        child: Text("Phone No.: "+_user.hp,style: TextStyle(color: Colors.white,fontSize: 16),),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(left:30,bottom:8.0),
+                                        child: Text("UID: "+pref.get("uid"),style: TextStyle(color: Colors.white,fontSize: 16),),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                             !imgSelected
                                 ? Container()
                                 : Center(
@@ -216,24 +269,27 @@ class _State extends State<Home> {
                                     borderRadius: BorderRadius.circular(20)),
                                 icon: imgSelected
                                     ? Icon(
-                                  Icons.camera_alt,
-                                  color: Theme.of(context).primaryColor,
-                                )
+                                        Icons.camera_alt,
+                                        color: Theme.of(context).primaryColor,
+                                      )
                                     : Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                ),
+                                        Icons.camera_alt,
+                                        color: Colors.white,
+                                      ),
                                 label: Text(
                                   "Take from Camera",
                                   style: imgSelected
                                       ? TextStyle(
-                                      color: Theme.of(context).primaryColor)
+                                          color: Theme.of(context).primaryColor)
                                       : TextStyle(color: Colors.white),
                                 )),
                             imgSelected
                                 ? Padding(
                                     padding: const EdgeInsets.only(
-                                        left: 8.0, right: 8.0, top: 20, bottom: 20),
+                                        left: 8.0,
+                                        right: 8.0,
+                                        top: 20,
+                                        bottom: 20),
                                     child: Container(
                                       width: MediaQuery.of(context).size.width,
                                       child: RaisedButton.icon(
@@ -242,10 +298,15 @@ class _State extends State<Home> {
                                             showDialog(
                                                 barrierDismissible: false,
                                                 context: context,
-                                                builder:
-                                                    (BuildContext innerContext) {
+                                                builder: (BuildContext
+                                                    innerContext) {
                                                   return AlertDialog(
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        20)),
                                                     title: Row(
                                                       children: <Widget>[
                                                         ImageIcon(Image.asset(
@@ -255,37 +316,46 @@ class _State extends State<Home> {
                                                             " Select an Option")
                                                       ],
                                                     ),
-                                                    content: SingleChildScrollView(
+                                                    content:
+                                                        SingleChildScrollView(
                                                       child: Column(
-                                                        mainAxisSize: MainAxisSize.min,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
                                                         children: <Widget>[
-                                                          Text("The app will conduct search on the database before allowing to file a new report on both functions."),
+                                                          Text(
+                                                              "The app will conduct search on the database before allowing to file a new report on both functions."),
                                                           Container(
                                                             width: 150,
                                                             child: FittedBox(
-                                                              child: RaisedButton.icon(
+                                                              child:
+                                                                  RaisedButton
+                                                                      .icon(
                                                                 shape: RoundedRectangleBorder(
                                                                     borderRadius:
-                                                                        BorderRadius
-                                                                            .circular(
-                                                                                20)),
+                                                                        BorderRadius.circular(
+                                                                            20)),
                                                                 icon: Icon(
                                                                   Icons.search,
-                                                                  color: Colors.white,
+                                                                  color: Colors
+                                                                      .white,
                                                                 ),
                                                                 label: Text(
                                                                   "I Lost a Pet",
                                                                   style: TextStyle(
                                                                       color: Colors
                                                                           .white),
-                                                                  textAlign: TextAlign.justify,
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .justify,
                                                                 ),
-                                                                color:
-                                                                    Theme.of(context)
-                                                                        .primaryColor,
-                                                                onPressed: () async {
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .primaryColor,
+                                                                onPressed:
+                                                                    () async {
                                                                   type = "lost";
-                                                                  Navigator.pop(innerContext);
+                                                                  Navigator.pop(
+                                                                      innerContext);
                                                                   showLoadingDialog(
                                                                       context,
                                                                       "Processing Image");
@@ -306,24 +376,32 @@ class _State extends State<Home> {
                                                           Container(
                                                             width: 150,
                                                             child: FittedBox(
-                                                              child: RaisedButton.icon(
+                                                              child:
+                                                                  RaisedButton
+                                                                      .icon(
                                                                 shape: RoundedRectangleBorder(
                                                                     borderRadius:
-                                                                        BorderRadius
-                                                                            .circular(
-                                                                                20)),
+                                                                        BorderRadius.circular(
+                                                                            20)),
                                                                 icon: Icon(
-                                                                    Icons.pets,color: Colors.white,),
+                                                                  Icons.pets,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
                                                                 label: Text(
                                                                   "I Found a Pet",
                                                                   style: TextStyle(
                                                                       color: Colors
                                                                           .white),
                                                                 ),
-                                                                color: Colors.blue,
-                                                                onPressed: () async {
-                                                                  type = "found";
-                                                                  Navigator.pop(innerContext);
+                                                                color:
+                                                                    Colors.blue,
+                                                                onPressed:
+                                                                    () async {
+                                                                  type =
+                                                                      "found";
+                                                                  Navigator.pop(
+                                                                      innerContext);
                                                                   showLoadingDialog(
                                                                       context,
                                                                       "Processing Image");
@@ -353,7 +431,9 @@ class _State extends State<Home> {
                                           elevation: 6,
                                           color: Theme.of(context).primaryColor,
                                           icon: ImageIcon(
-                                            Image.asset("assets/images/pawslogoflattened.png").image,
+                                            Image.asset(
+                                                    "assets/images/pawslogoflattened.png")
+                                                .image,
                                             color: Colors.white,
                                           ),
                                           label: Text("Begin Process",
@@ -368,8 +448,8 @@ class _State extends State<Home> {
                       ),
                     ),
                   ),
-                )),
-          );
+                ),
+              ));
         } else {
           return Loading();
         }
@@ -381,7 +461,7 @@ class _State extends State<Home> {
   Future getImage() async {
     final pickedFile = await picker.getImage(source: ImageSource.gallery);
 
-    if(pickedFile!=null) {
+    if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path);
         imgSelected = true;
@@ -390,10 +470,10 @@ class _State extends State<Home> {
   }
 
   //Function to take image from camera
-  Future getFromCam() async{
+  Future getFromCam() async {
     final pickedFile = await picker.getImage(source: ImageSource.camera);
 
-    if(pickedFile!=null) {
+    if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path);
         imgSelected = true;
