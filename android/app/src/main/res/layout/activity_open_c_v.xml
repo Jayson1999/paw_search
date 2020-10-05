@@ -79,7 +79,7 @@
                 android:background="@drawable/roundedbutton"
                 android:enabled="false"
                 android:fontFamily="@font/baloo"
-                android:text="File Report"
+                android:text="Not What You're Looking For?\nFile a New Report"
                 android:textColor="@android:color/white"
                 android:visibility="gone"
                 app:layout_constraintBottom_toTopOf="@+id/goback"
@@ -114,14 +114,13 @@
                 tools:src="@tools:sample/avatars" />
 
             <TextView
-                android:id="@+id/date"
-                android:layout_width="wrap_content"
+                android:id="@+id/postDate"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="32dp"
+                android:layout_marginStart="16dp"
                 android:layout_marginTop="32dp"
-                android:layout_marginEnd="32dp"
+                android:layout_marginEnd="16dp"
                 android:fontFamily="@font/baloo"
-                android:gravity="center"
                 android:textColor="#263238"
                 android:textSize="18sp"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -130,21 +129,25 @@
 
             <TextView
                 android:id="@+id/locationTV"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="16dp"
+                android:layout_marginEnd="16dp"
                 android:layout_marginBottom="8dp"
                 android:fontFamily="@font/baloo"
                 android:text="Pet Location: "
                 android:textColor="#263238"
+                android:textSize="18sp"
+                android:visibility="gone"
                 app:layout_constraintBottom_toTopOf="@+id/mapAPI"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/date" />
+                app:layout_constraintTop_toBottomOf="@+id/postDate" />
 
             <fragment
                 android:id="@+id/mapAPI"
-                android:name="com.google.android.gms.maps.SupportMapFragment"
+                class="com.fyp.pawsearch.BetterScrollMap"
                 android:layout_width="0dp"
                 android:layout_height="300dp"
                 android:layout_marginBottom="16dp"

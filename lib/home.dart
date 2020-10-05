@@ -51,7 +51,7 @@ class _State extends State<Home> {
     _scrollController = new ScrollController();
     //Listen to Scrolling, collapse Profile on scroll
     _scrollController.addListener(() {
-      if(_scrollController.offset>=_scrollController.position.maxScrollExtent && !_scrollController.position.outOfRange){
+      if(_scrollController.offset>=_scrollController.position.minScrollExtent && !_scrollController.position.outOfRange){
         setState(() {
           profSelected=false;
         });
@@ -126,6 +126,7 @@ class _State extends State<Home> {
           return WillPopScope(
               onWillPop: exitDialog,
               child: Scaffold(
+                backgroundColor: Colors.white,
                 key: _scaffoldKey,
                 appBar: AppBar(
                   leading: Center(
@@ -222,12 +223,12 @@ class _State extends State<Home> {
                                     ),
                                   ),
                             Padding(
-                              padding: const EdgeInsets.all(12.0),
+                              padding: EdgeInsets.all(imgSelected?8:20.0),
                               child: imgSelected
                                   ? Container()
                                   : Text(
                                       "Select an Image of The Pet for Pet Searching",
-                                      style: TextStyle(fontSize: 26),
+                                      style: TextStyle(fontSize: 24),
                                       textAlign: TextAlign.center,
                                     ),
                             ),
@@ -288,8 +289,8 @@ class _State extends State<Home> {
                                     padding: const EdgeInsets.only(
                                         left: 8.0,
                                         right: 8.0,
-                                        top: 20,
-                                        bottom: 20),
+                                        top: 15,
+                                        bottom: 28),
                                     child: Container(
                                       width: MediaQuery.of(context).size.width,
                                       child: RaisedButton.icon(
@@ -927,6 +928,7 @@ class _State extends State<Home> {
               actions: <Widget>[
                 FlatButton.icon(
                     onPressed: () {
+                      Navigator.pop(context);
                       _getOpenCVResult(breed);
                     },
                     icon: Icon(Icons.search),

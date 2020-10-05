@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -35,7 +36,6 @@ import com.bumptech.glide.request.transition.Transition;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -78,12 +78,12 @@ import java.util.Map;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.FragmentActivity;
-import io.flutter.plugins.firebase.storage.FirebaseStoragePlugin;
 
 
-public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallback {
+public class OpenCVActivity extends FragmentActivity  {
 
     //global variables
     ORB detector;
@@ -98,10 +98,12 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
     private ImageView pb;
     private TextView loading;
     private TextView date;
+    private TextView locationTV;
     private Button contact;
     private Button report;
     private Button goBack;
     private Dialog dialog;
+    private ScrollView scrollView;
 
     private File file;
     private Bitmap targetImage;
@@ -112,8 +114,11 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
     private QueryDocumentSnapshot highestPet;
     private SharedPreferences pref;
     private String uid;
-    private GoogleMap mapAPI;
-    private SupportMapFragment mapFragment;
+    private GoogleMap mapAPI, mapAPI2;
+    private BetterScrollMap mapFragment;
+    private boolean locationPermissionGranted;
+    private BetterScrollMap currMap;
+    private String reportLocation = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,24 +129,32 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
         getActionBar().setTitle("Image Matching");
         getActionBar().setIcon(android.R.drawable.ic_menu_search);
 
-        //initialize Google Map & Location
-        mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.mapAPI);
-        mapFragment.getMapAsync(this::onMapReady);
-        //mapFragment.getView().setVisibility(View.GONE);
-
-        //initialize SharedPreference UID
-        pref = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE);
-        uid = pref.getString("flutter.uid", "Can't find the UID");
-
         //initialize view
         matchIV = (ImageView) findViewById(R.id.matchIV);
         matchPerc = (TextView) findViewById(R.id.matchPerc);
         loading = (TextView) findViewById(R.id.loadingTV);
+        locationTV = (TextView) findViewById(R.id.locationTV);
         pb = (ImageView) findViewById(R.id.loadingPB);
-        date = (TextView) findViewById(R.id.date);
+        date = (TextView) findViewById(R.id.postDate);
         contact = (Button) findViewById(R.id.contact);
         report = (Button) findViewById(R.id.report);
         goBack = (Button) findViewById(R.id.goback);
+        scrollView = (ScrollView) findViewById(R.id.scrollLayout);
+
+        //initialize Google Map & Location
+        mapFragment = (BetterScrollMap) getSupportFragmentManager().findFragmentById(R.id.mapAPI);
+        mapFragment.getMapAsync(onMapReadyCallback1());
+        mapFragment.getView().setVisibility(View.GONE);
+        ((BetterScrollMap) getSupportFragmentManager().findFragmentById(R.id.mapAPI)).setListener(new BetterScrollMap.OnTouchListener() {
+            @Override
+            public void onTouch() {
+                scrollView.requestDisallowInterceptTouchEvent(true);
+            }
+        });
+
+        //initialize SharedPreference UID
+        pref = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE);
+        uid = pref.getString("flutter.uid", "Can't find the UID");
 
         //Go back to Flutter
         goBack.setOnClickListener(new View.OnClickListener() {
@@ -236,34 +249,37 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
                         //for each document of the breed found
                         for (QueryDocumentSnapshot document : task.getResult()) {
                             index++;
-                            //Load each image from url as bitmap for OpenCV usage
-                            Glide.with(OpenCVActivity.this).asBitmap().load(document.getString("url")).into(new CustomTarget<Bitmap>() {
-                                @Override
-                                public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
-                                    //Start comparing every bitmap in openCV function
-                                    //TODO: Filter lower percentage result
-                                    double result = startComparison(resource);
-                                    Log.i("COMPARE", result + "");
-                                    if (result >= highestMatch) {
-                                        highestMatch = result;
-                                        highestPet = document;  //Get the highest matched result
-                                    }
-                                    Log.i("HIGHEST", highestMatch + "");
-                                    //TODO: Handle empty result
-                                    if (index == task.getResult().size()) {
-                                        //Conduct at last document (decision)
-                                        if (highestPet != null) {   //If there's result
-                                            displayResult();
-                                        } else {   //If all the matching are too low percentage
+                            if(!OpenCVActivity.this.isFinishing()) {
+                                //Load each image from url as bitmap for OpenCV usage
+                                Glide.with(OpenCVActivity.this).asBitmap().load(document.getString("url")).into(new CustomTarget<Bitmap>() {
+                                    @Override
+                                    public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
+                                        //Start comparing every bitmap in openCV function
+                                        //TODO: Filter lower percentage result
+                                        double result = startComparison(resource);
+                                        Log.i("COMPARE", result + "");
+                                        if (result >= highestMatch) {
+                                            highestMatch = result;
+                                            highestPet = document;  //Get the highest matched result
+                                        }
+                                        Log.i("HIGHEST", highestMatch + "");
+                                        //TODO: Handle empty result
+                                        if (index == task.getResult().size()) {
+                                            //Conduct at last document (decision)
+                                            if (highestPet != null) {   //If there's result
+                                                displayResult();
+                                            } else {   //If all the matching are too low percentage
+
+                                            }
 
                                         }
-
                                     }
-                                }
-                                @Override
-                                public void onLoadCleared(@Nullable Drawable placeholder) {
-                                }
-                            });
+
+                                    @Override
+                                    public void onLoadCleared(@Nullable Drawable placeholder) {
+                                    }
+                                });
+                            }
                         }
                     }
                     else{   //If there's no result for the breed found
@@ -365,29 +381,42 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
     //Function to Display Result after last comparison
     private void displayResult(){
         //Set view values
+        locationTV.setVisibility(View.VISIBLE);
+        mapFragment.getView().setVisibility(View.VISIBLE);
         loading.setVisibility(View.GONE);
-        date.setText(highestPet.getString("foundDate"));
+        date.setText("Date: "+highestPet.getString("foundDate"));
         matchPerc.setText("Match Found with Percentage of "+String.format("%.2f", highestMatch)+" %");
 
-        //Load final result Image View
-        Glide.with(OpenCVActivity.this).load(highestPet.getString("url")).listener(new RequestListener<Drawable>() {
-            @Override
-            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                Toast.makeText(OpenCVActivity.this,"Image load failed! Exception: "+e.toString(),Toast.LENGTH_SHORT).show();
-                return false;
-            }
-            @Override
-            public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                pb.setVisibility(View.GONE);
-                return false;
-            }
-        }).into(matchIV);
+        if(!OpenCVActivity.this.isFinishing()) {
+            //Load final result Image View
+            Glide.with(OpenCVActivity.this).load(highestPet.getString("url")).listener(new RequestListener<Drawable>() {
+                @Override
+                public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                    Toast.makeText(OpenCVActivity.this, "Image load failed! Exception: " + e.toString(), Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+
+                @Override
+                public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                    pb.setVisibility(View.GONE);
+                    return false;
+                }
+            }).into(matchIV);
+        }
 
         //Show Pet Location on Google map
-        LatLng latLng = new LatLng(Double.parseDouble(highestPet.getString("location").split(", ")[0]), Double.parseDouble(highestPet.getString("location").split(", ")[1]));
+        LatLng latLng;
+        if(highestPet.getString("location").length()>0) {
+            latLng = new LatLng(Double.parseDouble(highestPet.getString("location").split(", ")[0]), Double.parseDouble(highestPet.getString("location").split(", ")[1]));
+        }
+        else{
+            latLng = new LatLng(0.0,0.0);
+        }
         MarkerOptions options = new MarkerOptions().position(latLng).title("Pet Location");
         mapAPI.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,15));
-        mapAPI.addMarker(options);
+        mapAPI.addMarker(options).showInfoWindow();
+        mapAPI.getUiSettings().setZoomControlsEnabled(true);
+        mapAPI.getUiSettings().setAllGesturesEnabled(true);
 
         //Get Post Owner Name from database
         FirebaseFirestore.getInstance().collection("User").document(highestPet.getString("postOwner")).get()
@@ -495,81 +524,10 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
     private void reportDialog(){
         //Set report layout with views
         AlertDialog dialog;
-        ScrollView sv = new ScrollView(OpenCVActivity.this);
-        sv.setFillViewport(true);
-        LinearLayout ll = new LinearLayout(OpenCVActivity.this);
-        ll.setOrientation(LinearLayout.VERTICAL);
-        ll.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(32,32,32,32);
-        params.gravity = Gravity.CENTER;
-
-        ProgressBar pb = new ProgressBar(OpenCVActivity.this,null,android.R.attr.progressBarStyleHorizontal);
-        pb.setVisibility(View.GONE);
-
-        TextView progressTV = new TextView(OpenCVActivity.this);
-        progressTV.setTextColor(Color.parseColor("#263238"));
-        progressTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-        progressTV.setPadding(0,0,0,32);
-        progressTV.setGravity(Gravity.CENTER);
-
-        ImageView petImage = new ImageView(OpenCVActivity.this);
-        petImage.setImageBitmap(targetImage);
-        petImage.setPadding(0,32,0,32);
-        petImage.setAdjustViewBounds(true);
-        petImage.setMaxHeight(800);
-
-        TextView reportType = new TextView(OpenCVActivity.this);
-        if(searchType.equals("Lost")){
-            reportType.setText("Report Type : "+"Found Report");
-        }
-        else{
-            reportType.setText("Report Type : "+"Lost Report");
-        }
-        reportType.setTextColor(Color.parseColor("#263238"));
-        reportType.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-        reportType.setPadding(0,0,0,32);
-        reportType.setGravity(Gravity.CENTER);
-
-        TextView postDate = new TextView(OpenCVActivity.this);
-        Date c = Calendar.getInstance().getTime();
-        SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a", Locale.getDefault());
-        String formattedDate = df.format(c);
-        postDate.setText("Date : "+formattedDate);
-        postDate.setTextColor(Color.parseColor("#263238"));
-        postDate.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-        postDate.setPadding(0,0,0,32);
-        postDate.setGravity(Gravity.CENTER);
-
-        TextView breedTV = new TextView(OpenCVActivity.this);
-        breedTV.setText("Breed Class : "+breed);
-        breedTV.setTextColor(Color.parseColor("#263238"));
-        breedTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-        breedTV.setPadding(0,0,0,32);
-        breedTV.setGravity(Gravity.CENTER);
-
-        TextView postOwner = new TextView(OpenCVActivity.this);
-        postOwner.setText("Post Owner UID : "+uid);
-        postOwner.setTextColor(Color.parseColor("#263238"));
-        postOwner.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-        postOwner.setPadding(0,0,0,32);
-        postOwner.setGravity(Gravity.CENTER);
-
-        ll.setLayoutParams(params);
-        ll.addView(pb);
-        ll.addView(progressTV);
-        ll.addView(petImage);
-        ll.addView(reportType);
-        ll.addView(postDate);
-        ll.addView(breedTV);
-        ll.addView(postOwner);
-        sv.addView(ll);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(OpenCVActivity.this);
-        builder.setTitle("File New Report")
-                .setIcon(android.R.drawable.ic_menu_edit)
-                .setMessage("\nThe Report will share the following details to our database to help the pet. Click on Confirm to Agree.")
-                .setView(sv)
+        builder
+                .setCancelable(false)
                 .setPositiveButton("Confirm", null)
                 .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
@@ -577,11 +535,60 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
                         dialog.dismiss();
                     }
                 });
-        dialog = builder.create();
+        dialog = builder.setView(R.layout.reportdialog).create();
         dialog.show();
+        dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                if(currMap != null){
+                    getSupportFragmentManager().beginTransaction().remove(currMap).commit();
+                }
+            }
+        });
         dialog.getWindow().setBackgroundDrawableResource(R.drawable.roundeddialog);
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.parseColor("#FF5252"));
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#2196F3"));
+
+        ScrollView sv = (ScrollView) dialog.findViewById(R.id.sv);
+
+        ProgressBar pb = (ProgressBar) dialog.findViewById(R.id.pb);
+        pb.setVisibility(View.GONE);
+
+        TextView progressTV = (TextView) dialog.findViewById(R.id.progressTV);
+
+        ImageView petImage = (ImageView) dialog.findViewById(R.id.petImage);
+        petImage.setImageBitmap(targetImage);
+
+        TextView reportType = (TextView) dialog.findViewById(R.id.reportType);
+        if(searchType.equals("Lost")){
+            reportType.setText("Report Type : "+"Found Report");
+        }
+        else{
+            reportType.setText("Report Type : "+"Lost Report");
+        }
+
+        TextView postDate = (TextView) dialog.findViewById(R.id.postDate);
+        Date c = Calendar.getInstance().getTime();
+        SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a", Locale.getDefault());
+        String formattedDate = df.format(c);
+        postDate.setText("Date : "+formattedDate);
+
+        TextView breedTV = (TextView) dialog.findViewById(R.id.breedTV);
+        breedTV.setText("Breed Class : "+breed);
+
+        TextView postOwner = (TextView) dialog.findViewById(R.id.postOwner);
+        postOwner.setText("Post Owner UID : "+uid);
+
+            currMap = (BetterScrollMap) getSupportFragmentManager().findFragmentById(R.id.currMap);
+            currMap.getMapAsync(onMapReadyCallback2());
+            ((BetterScrollMap) getSupportFragmentManager().findFragmentById(R.id.currMap)).setListener(new BetterScrollMap.OnTouchListener() {
+                @Override
+                public void onTouch() {
+                    sv.requestDisallowInterceptTouchEvent(true);
+                }
+            });
+
+
         //On Confirm Clicked, Conduct Upload
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -618,6 +625,7 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
                                     Map<String, Object> petReport = new HashMap<>();
                                     petReport.put("url", url.toString());
                                     petReport.put("breed", breed);
+                                    petReport.put("location", reportLocation);
                                     petReport.put("foundDate", formattedDate);
                                     petReport.put("postOwner", pref.getString("flutter.uid","Can't find UID"));
                                     FirebaseFirestore.getInstance().collection(rptType).document(formattedDate).set(petReport)
@@ -627,7 +635,18 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
                                                     if(task.isSuccessful()){
                                                         //Close dialog when upload is done
                                                         dialog.dismiss();
-                                                        Toast.makeText(OpenCVActivity.this, "Report succesfully filed to Database!", Toast.LENGTH_SHORT).show();
+
+                                                        Toast toast = Toast.makeText(OpenCVActivity.this, "Report succesfully filed to Database!", Toast.LENGTH_LONG);
+                                                        View view = toast.getView();
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                            view.setForegroundGravity(Gravity.CENTER);
+                                                        }
+                                                        view.setBackgroundResource(R.drawable.roundedbutton);
+                                                        TextView text = (TextView) view.findViewById(android.R.id.message);
+                                                        text.setTextColor(Color.parseColor("#FFFFFF"));
+                                                        text.setTextSize(16);
+                                                        text.setGravity(Gravity.CENTER);
+                                                        toast.show();
                                                     }
                                                 }
                                             })
@@ -694,21 +713,108 @@ public class OpenCVActivity extends FragmentActivity implements OnMapReadyCallba
         }
     };
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mapAPI = googleMap;
+    public OnMapReadyCallback onMapReadyCallback1(){
+        return new OnMapReadyCallback(){
+            @Override
+            public void onMapReady(GoogleMap googleMap) {
+                mapAPI = googleMap;
+
+                updateLocationUI();
+            }
+        };
     }
 
+    public OnMapReadyCallback onMapReadyCallback2(){
+        return new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(GoogleMap googleMap) {
+                mapAPI2 = googleMap;
 
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if(requestCode == 69){
-            if(grantResults.length>0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                updateLocationUI2();
+                LatLng latLng = new LatLng(4.2105, 101.9758);
+                MarkerOptions options = new MarkerOptions().position(latLng).title("Default Location");
+                mapAPI2.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,5));
+                mapAPI2.addMarker(options).showInfoWindow();
+                mapAPI2.getUiSettings().setZoomControlsEnabled(true);
+                mapAPI2.getUiSettings().setAllGesturesEnabled(true);
+                mapAPI2.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+                    @Override
+                    public void onMapClick(LatLng latLng) {
+                        mapAPI2.clear();
+                        reportLocation = latLng.latitude + ", " + latLng.longitude;
+                        MarkerOptions options = new MarkerOptions().position(latLng).title("Set Location");
+                        mapAPI2.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,16));
+                        mapAPI2.addMarker(options).showInfoWindow();
+                    }
+                });
 
             }
+        };
+    }
+
+    private void updateLocationUI() {
+        if (mapAPI == null) {
+            return;
+        }
+        try {
+            if (locationPermissionGranted) {
+                mapAPI.setMyLocationEnabled(true);
+                mapAPI.getUiSettings().setMyLocationButtonEnabled(true);
+            } else {
+                mapAPI.setMyLocationEnabled(false);
+                mapAPI.getUiSettings().setMyLocationButtonEnabled(false);
+                getLocationPermission();
+            }
+        } catch (SecurityException e)  {
+            Log.e("Exception: %s", e.getMessage());
         }
     }
+
+    private void updateLocationUI2() {
+        if (mapAPI2 == null) {
+            return;
+        }
+        try {
+            if (locationPermissionGranted) {
+                mapAPI2.setMyLocationEnabled(true);
+                mapAPI2.getUiSettings().setMyLocationButtonEnabled(true);
+            } else {
+                mapAPI2.setMyLocationEnabled(false);
+                mapAPI2.getUiSettings().setMyLocationButtonEnabled(false);
+                getLocationPermission();
+            }
+        } catch (SecurityException e)  {
+            Log.e("Exception: %s", e.getMessage());
+        }
+    }
+
+    private void getLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
+                android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            locationPermissionGranted = true;
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},69
+                    );
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        locationPermissionGranted = false;
+        switch (requestCode) {
+            case 69: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    locationPermissionGranted = true;
+                }
+            }
+        }
+        updateLocationUI();
+    }
+
 }
