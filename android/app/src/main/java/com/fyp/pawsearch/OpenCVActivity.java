@@ -104,6 +104,7 @@ public class OpenCVActivity extends FragmentActivity  {
     private Button goBack;
     private Dialog dialog;
     private ScrollView scrollView;
+    private LinearLayout matchLayout;
 
     private File file;
     private Bitmap targetImage;
@@ -140,6 +141,7 @@ public class OpenCVActivity extends FragmentActivity  {
         report = (Button) findViewById(R.id.report);
         goBack = (Button) findViewById(R.id.goback);
         scrollView = (ScrollView) findViewById(R.id.scrollLayout);
+        matchLayout = (LinearLayout) findViewById(R.id.matchedLayout);
 
         //initialize Google Map & Location
         mapFragment = (BetterScrollMap) getSupportFragmentManager().findFragmentById(R.id.mapAPI);
@@ -350,8 +352,6 @@ public class OpenCVActivity extends FragmentActivity  {
             Bitmap imageMatched = Bitmap.createBitmap(outputImg.cols(), outputImg.rows(), Bitmap.Config.RGB_565);
             Utils.matToBitmap(outputImg, imageMatched);
 
-            //matchIV.setImageBitmap(imageMatched);
-
             //Calculate Good matches with Lowe's ratio to distinguish and limit unnecessary match points
             LinkedList<DMatch> good_matches = new LinkedList<DMatch>();
             for (int i = 0; i < matchesList.size(); i++) {
@@ -359,13 +359,35 @@ public class OpenCVActivity extends FragmentActivity  {
                     good_matches.addLast(matchesList.get(i));
             }
 
+            //If Good Match Result list is not empty
             if(matchesList.size()>0 && good_matches.size()>0) {
+                //Calculate Match Percentage
                 double matchPercent = (100 * good_matches.size()) / matchesList.size();
-                //matchPerc.setText("Image Matching Percentage:\n"+matchPercent+"%");
+                //Show similar results on matches made on screen with percentage
+                LinearLayout matchedInner = new LinearLayout(OpenCVActivity.this);
+                matchedInner.setOrientation(LinearLayout.VERTICAL);
+                //Set Percentage
+                TextView percentagePerSearch = new TextView(OpenCVActivity.this);
+                percentagePerSearch.setGravity(Gravity.CENTER);
+                percentagePerSearch.setTextColor(Color.parseColor("#263238"));
+                percentagePerSearch.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
+                percentagePerSearch.setText(matchPercent+"%");
+                //Set Image
+                ImageView matchedImg = new ImageView(OpenCVActivity.this);
+                matchedImg.setImageBitmap(imageMatched);
+                matchedImg.setPadding(8,8,8,8);
+                matchedImg.setAdjustViewBounds(true);
+                matchedImg.setMaxWidth(300);
+                matchedImg.setMaxHeight(300);
+                //Add views into vertical inner Linear Layout representing one per search
+                matchedInner.addView(matchedImg);
+                matchedInner.addView(percentagePerSearch);
+                //Add the inner layout into the Horizontal Linear Layout
+                matchLayout.addView(matchedInner);
                 return matchPercent;
             }
+            //No match found
             else{
-                //matchPerc.setText("Image Matching Percentage:\n0.0%");
                 return 0.0;
             }
 
@@ -406,12 +428,13 @@ public class OpenCVActivity extends FragmentActivity  {
 
         //Show Pet Location on Google map
         LatLng latLng;
-        if(highestPet.getString("location").length()>0) {
+        if(highestPet.getString("location")!=null && highestPet.getString("location").length()>0 && highestPet.getString("location").contains(",")) {
             latLng = new LatLng(Double.parseDouble(highestPet.getString("location").split(", ")[0]), Double.parseDouble(highestPet.getString("location").split(", ")[1]));
         }
         else{
             latLng = new LatLng(0.0,0.0);
         }
+        mapAPI.clear();
         MarkerOptions options = new MarkerOptions().position(latLng).title("Pet Location");
         mapAPI.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,15));
         mapAPI.addMarker(options).showInfoWindow();

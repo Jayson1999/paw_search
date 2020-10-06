@@ -75,17 +75,56 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="32dp"
                 android:layout_marginEnd="32dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="32dp"
                 android:background="@drawable/roundedbutton"
                 android:enabled="false"
                 android:fontFamily="@font/baloo"
                 android:text="Not What You're Looking For?\nFile a New Report"
                 android:textColor="@android:color/white"
                 android:visibility="gone"
+                app:layout_constraintBottom_toTopOf="@id/similarResultLL"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <LinearLayout
+                android:id="@+id/similarResultLL"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp"
+                android:orientation="vertical"
                 app:layout_constraintBottom_toTopOf="@+id/goback"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="1.0"
-                app:layout_constraintStart_toStartOf="parent" />
+                app:layout_constraintStart_toStartOf="parent">
+
+                <TextView
+                    android:id="@+id/textView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/baloo"
+                    android:text="Similar Results of Matches Made: "
+                    android:textColor="#263238" />
+
+                <HorizontalScrollView
+                    android:fillViewport="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center">
+
+                    <LinearLayout
+                        android:id="@+id/matchedLayout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:paddingLeft="8dp"
+                        android:paddingTop="8dp"
+                        android:paddingRight="8dp"
+                        android:paddingBottom="8dp" />
+                </HorizontalScrollView>
+
+            </LinearLayout>
 
             <Button
                 android:id="@+id/goback"
@@ -150,7 +189,7 @@
                 class="com.fyp.pawsearch.BetterScrollMap"
                 android:layout_width="0dp"
                 android:layout_height="300dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="24dp"
                 app:layout_constraintBottom_toTopOf="@+id/contact"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"></fragment>
