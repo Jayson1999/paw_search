@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +27,7 @@ class _State extends State<Home> {
   FireAuth _auth = FireAuth();
   User _user = new User();
   Future getUser;
+  Future<List> getPosts;
   String type;
   SharedPreferences pref;
 
@@ -32,6 +35,7 @@ class _State extends State<Home> {
       ScaffoldState>(); //Scaffold key to show Scaffold widgets of Bottom Sheet and SnackBar
 
   ScrollController _scrollController;
+  bool postSelected = false;
   bool profSelected = false; //Track if profile is clicked
   bool imgSelected = false; //Track if any image is selected for UI changes
   String loadingMsg = "Loading Model..."; //Global reusable Loading Message
@@ -48,12 +52,16 @@ class _State extends State<Home> {
   void initState() {
     super.initState();
     getUser = checkUser(); //Initialize checking during startup
+    getPosts = userPosts(); //Get all the post of the user
     _scrollController = new ScrollController();
     //Listen to Scrolling, collapse Profile on scroll
     _scrollController.addListener(() {
-      if(_scrollController.offset>=_scrollController.position.minScrollExtent && !_scrollController.position.outOfRange){
+      if (_scrollController.offset >=
+              _scrollController.position.minScrollExtent &&
+          !_scrollController.position.outOfRange) {
         setState(() {
-          profSelected=false;
+          profSelected = false;
+          postSelected = false;
         });
       }
     });
@@ -115,6 +123,32 @@ class _State extends State<Home> {
     return true;
   }
 
+  Future<List> userPosts() async {
+    pref = await SharedPreferences.getInstance();
+    List posts = new List();
+    //Get from Found Posts
+    await Firestore.instance
+        .collection("Found")
+        .where("postOwner", isEqualTo: pref.getString("uid"))
+        .getDocuments()
+        .then((value) {
+      value.documents.forEach((element) {
+        posts.add(element);
+      });
+    });
+    //Get from Lost Posts
+    await Firestore.instance
+        .collection("Lost")
+        .where("postOwner", isEqualTo: pref.getString("uid"))
+        .getDocuments()
+        .then((value) {
+      value.documents.forEach((element) {
+        posts.add(element);
+      });
+    });
+    return posts;
+  }
+
   //Main build function
   @override
   Widget build(BuildContext context) {
@@ -129,31 +163,51 @@ class _State extends State<Home> {
                 backgroundColor: Colors.white,
                 key: _scaffoldKey,
                 appBar: AppBar(
-                  leading: Center(
-                    child: CircleAvatar(
-                      backgroundImage: AssetImage("assets/images/pawslogo.png"),
+                  leading: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (postSelected) {
+                          postSelected = false;
+                          profSelected = false;
+                        } else {
+                          getPosts = userPosts();  //Reload new results each time it's clicked
+                          postSelected = true;
+                          profSelected = false;
+                        }
+                      });
+                    },
+                    child: Center(
+                      child: CircleAvatar(
+                        backgroundImage:
+                            AssetImage("assets/images/pawslogo.png"),
+                      ),
                     ),
                   ),
                   actions: <Widget>[
                     IconButton(
                       icon: Icon(
-                        !profSelected?Icons.account_circle:Icons.keyboard_arrow_up,
+                        !profSelected
+                            ? Icons.account_circle
+                            : Icons.keyboard_arrow_up,
                         color: Colors.white,
                       ),
                       onPressed: () {
                         setState(() {
-                          if(profSelected){
+                          if (profSelected) {
                             profSelected = false;
-                          }
-                          else {
+                            postSelected = false;
+                          } else {
                             profSelected = true;
+                            postSelected = false;
                           }
                         });
                       },
                     )
                   ],
                   title: Text(
-                    !profSelected?"Welcome " + _user.name + "!":"Profile",
+                    !profSelected && !postSelected
+                        ? "Welcome " + _user.name + "!"
+                        : postSelected ? "Your Reports" : "Profile",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   centerTitle: true,
@@ -168,35 +222,9 @@ class _State extends State<Home> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
-                            AnimatedContainer(    //Expandable layout to display Profile
-                              color: Theme.of(context).primaryColor,
-                              duration:Duration(milliseconds: 250),
-                              width: profSelected?MediaQuery.of(context).size.width:0,
-                              height: profSelected?160:0,
-                              child: SingleChildScrollView(
-                                child: Container(
-                                  height: 160,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: <Widget>[
-                                      Padding(
-                                        padding: const EdgeInsets.only(left:30, bottom:8.0),
-                                        child: Text("Name: "+_user.name,style: TextStyle(color: Colors.white,fontSize: 16),),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(left:30,bottom:8.0),
-                                        child: Text("Phone No.: "+_user.hp,style: TextStyle(color: Colors.white,fontSize: 16),),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(left:30,bottom:8.0),
-                                        child: Text("UID: "+pref.get("uid"),style: TextStyle(color: Colors.white,fontSize: 16),),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
+                            //Expandable layout to display Profile or show user's Posts
+                            showProfile(),
+                            showPosts(),
                             !imgSelected
                                 ? Container()
                                 : Center(
@@ -223,7 +251,7 @@ class _State extends State<Home> {
                                     ),
                                   ),
                             Padding(
-                              padding: EdgeInsets.all(imgSelected?8:20.0),
+                              padding: EdgeInsets.all(imgSelected ? 8 : 20.0),
                               child: imgSelected
                                   ? Container()
                                   : Text(
@@ -456,6 +484,267 @@ class _State extends State<Home> {
         }
       },
     );
+  }
+
+  Widget showProfile() {
+    return AnimatedContainer(
+      color: Theme.of(context).primaryColor,
+      duration: Duration(milliseconds: 250),
+      width: profSelected ? MediaQuery.of(context).size.width : 0,
+      height: profSelected ? 160 : 0,
+      child: Container(
+        height: 160,
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(left: 30, bottom: 8.0),
+                  child: Text(
+                    "Name: " + _user.name,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 30, bottom: 8.0),
+                  child: Text(
+                    "Phone No.: " + _user.hp,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 30, bottom: 8.0),
+                  child: Text(
+                    "UID: " + pref.get("uid"),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget showPosts() {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 250),
+      height: postSelected ? 500 : 0,
+      child: FutureBuilder(
+          future: getPosts,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              if (snapshot.data.length > 0) {
+                return Container(
+                  color: Theme.of(context).primaryColor,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ListView.builder(
+                      itemCount: snapshot.data.length,
+                      itemBuilder: (context, index) {
+                        return InkWell(
+                          onTap: () {
+                            reunionDialog(snapshot.data.elementAt(index));
+                          },
+                          child: Card(
+                            child: ListTile(
+                              leading: ImageIcon(
+                                Image.asset(
+                                        "assets/images/pawslogoflattened.png")
+                                    .image,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              title: Text(
+                                  snapshot.data.elementAt(index).documentID),
+                              subtitle: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: <Widget>[
+                                  Expanded(
+                                      child: Text("Report Type: "+snapshot.data.elementAt(index).data["type"]+"\nBreed: " +
+                                          snapshot.data
+                                              .elementAt(index)
+                                              .data["breed"] +
+                                          "\nTap to set as \"Reunioned\".")),
+                                  Container(
+                                      width: 80,
+                                      height: 80,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: CachedNetworkImage(
+                                          imageUrl: snapshot.data
+                                              .elementAt(index)
+                                              .data["url"],
+                                          progressIndicatorBuilder: (context,
+                                                  url, downloadProgress) =>
+                                              Center(
+                                            child: CircularProgressIndicator(
+                                              value: downloadProgress.progress,
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) =>
+                                              Icon(
+                                            Icons.error,
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
+                                      ))
+                                ],
+                              ),
+                              isThreeLine: true,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              } else {
+                return Center(
+                    child: Text(
+                        "No Reports Found! Begin the search process to file a new report."));
+              }
+            } else {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.asset("assets/images/loading.gif"),
+                ),
+              );
+            }
+          }),
+    );
+  }
+
+  //Function to set pets as Reunioned status
+  reunionDialog(DocumentSnapshot snapshot) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0)),
+            title: Text("Set Pet as \"Reunioned\""),
+            content: Text(
+                "Setting this pet's status as \"Reunioned\" will automatically remove its report on the database as well. Do you confirm?"),
+            actions: <Widget>[
+              FlatButton.icon(
+                icon: Icon(
+                  Icons.done,
+                  color: Colors.green,
+                ),
+                label: Text(
+                  "Confirm",
+                  style: TextStyle(color: Colors.blue),
+                ),
+                onPressed: () async {
+                  showLoadingDialog(
+                      context, "Setting Up Reunion and Clearing Report");
+                  bool error =
+                      false; //To track if any error occurs during deletion
+                  //Get reference of cloud storage from db url
+                  await FirebaseStorage.instance
+                      .getReferenceFromUrl(snapshot.data["url"])
+                      .then((value) {
+                    value.delete().then((deleteValue) async {
+                      await Firestore.instance
+                          .collection("Found")
+                          .document(snapshot.documentID)
+                          .get()
+                          .then((value) async {
+                        //check if document exist in Found or Lost before deleting
+                        if (value.exists) {
+                          await Firestore.instance
+                              .collection("Found")
+                              .document(snapshot.documentID)
+                              .delete();
+                        }
+                        //if not exist in Found
+                        else {
+                          await Firestore.instance
+                              .collection("Lost")
+                              .document(snapshot.documentID)
+                              .get()
+                              .then((value) async {
+                            //conduct further checking in Lost before deleting
+                            if (value.exists) {
+                              await Firestore.instance
+                                  .collection("Lost")
+                                  .document(snapshot.documentID)
+                                  .delete();
+                            } else {
+                              error = true;
+                              _scaffoldKey.currentState.showSnackBar(SnackBar(
+                                content: Text(
+                                    "Could not find the document in database...",
+                                    style: TextStyle(color: Colors.white)),
+                                backgroundColor: Colors.redAccent,
+                              ));
+                            }
+                          });
+                        }
+                      });
+                    }).catchError((onError) {
+                      error = true;
+                      _scaffoldKey.currentState.showSnackBar(SnackBar(
+                        content: Text(
+                            "An error occurred while deleting from Cloud. Exception: " +
+                                onError.toString(),
+                            style: TextStyle(color: Colors.white)),
+                        backgroundColor: Colors.redAccent,
+                      ));
+                    });
+                  }).catchError((onError) {
+                    error = true;
+                    _scaffoldKey.currentState.showSnackBar(SnackBar(
+                      content: Text(
+                          "An error occured while reading Image URL. Exception: " +
+                              onError.toString(),
+                          style: TextStyle(color: Colors.white)),
+                      backgroundColor: Colors.redAccent,
+                    ));
+                  });
+
+                  Navigator.pop(context); //Close loading dialog
+                  //On success delete at all place
+                  if (!error) {
+                    Navigator.pop(context);
+                    _scaffoldKey.currentState.showSnackBar(SnackBar(
+                      content: Text(
+                        "Congratulations on the Pet Reunion. The Report has been cleared.",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.blue,
+                      behavior: SnackBarBehavior.floating,
+                    ));
+                    //Refresh state
+                    setState(() {
+                      getPosts = userPosts();  //Reload new results
+                      postSelected = false;
+                    });
+                  }
+                },
+              ),
+              FlatButton.icon(
+                icon: Icon(
+                  Icons.cancel,
+                  color: Colors.redAccent,
+                ),
+                label: Text(
+                  "Cancel",
+                  style: TextStyle(color: Colors.red),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          );
+        });
   }
 
   //Function to pick image from gallery

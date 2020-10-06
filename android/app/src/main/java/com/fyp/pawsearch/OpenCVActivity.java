@@ -127,7 +127,7 @@ public class OpenCVActivity extends FragmentActivity  {
         setContentView(R.layout.activity_open_c_v);
 
         //custom App Bar
-        getActionBar().setTitle("Image Matching");
+        getActionBar().setTitle(" Pet Matching ");
         getActionBar().setIcon(android.R.drawable.ic_menu_search);
 
         //initialize view
@@ -651,6 +651,7 @@ public class OpenCVActivity extends FragmentActivity  {
                                     petReport.put("location", reportLocation);
                                     petReport.put("foundDate", formattedDate);
                                     petReport.put("postOwner", pref.getString("flutter.uid","Can't find UID"));
+                                    petReport.put("type",rptType);
                                     FirebaseFirestore.getInstance().collection(rptType).document(formattedDate).set(petReport)
                                             .addOnCompleteListener(new OnCompleteListener<Void>() {
                                                 @Override
@@ -659,7 +660,7 @@ public class OpenCVActivity extends FragmentActivity  {
                                                         //Close dialog when upload is done
                                                         dialog.dismiss();
 
-                                                        Toast toast = Toast.makeText(OpenCVActivity.this, "Report succesfully filed to Database!", Toast.LENGTH_LONG);
+                                                        Toast toast = Toast.makeText(OpenCVActivity.this, "Report succesfully filed to Database! Your report can now be found at the home page.", Toast.LENGTH_LONG);
                                                         View view = toast.getView();
                                                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                                             view.setForegroundGravity(Gravity.CENTER);
