@@ -407,7 +407,7 @@ class _LoginSheetState extends State<LoginSheet> {
                         'VERIFY',
                         style: TextStyle(color: Colors.white),
                       ),
-                      color: Color.fromRGBO(1, 208, 249, 1.0),
+                      color: Theme.of(context).primaryColor,
                     )),
               ),
               Padding(

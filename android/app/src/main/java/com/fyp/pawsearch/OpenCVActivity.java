@@ -105,6 +105,7 @@ public class OpenCVActivity extends FragmentActivity  {
     private Dialog dialog;
     private ScrollView scrollView;
     private LinearLayout matchLayout;
+    private TextView similarTV;
 
     private File file;
     private Bitmap targetImage;
@@ -142,6 +143,7 @@ public class OpenCVActivity extends FragmentActivity  {
         goBack = (Button) findViewById(R.id.goback);
         scrollView = (ScrollView) findViewById(R.id.scrollLayout);
         matchLayout = (LinearLayout) findViewById(R.id.matchedLayout);
+        similarTV = (TextView)findViewById(R.id.similarTV);
 
         //initialize Google Map & Location
         mapFragment = (BetterScrollMap) getSupportFragmentManager().findFragmentById(R.id.mapAPI);
@@ -204,7 +206,6 @@ public class OpenCVActivity extends FragmentActivity  {
                 else{
                     error = true;
                     Toast.makeText(OpenCVActivity.this, "File not Found!", Toast.LENGTH_SHORT).show();
-                    Log.i("CANNOT",file.getPath());
                 }
             }
         }
@@ -257,21 +258,22 @@ public class OpenCVActivity extends FragmentActivity  {
                                     @Override
                                     public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
                                         //Start comparing every bitmap in openCV function
-                                        //TODO: Filter lower percentage result
                                         double result = startComparison(resource);
                                         Log.i("COMPARE", result + "");
-                                        if (result >= highestMatch) {
+                                        //TODO: Filter lower percentage
+                                        //Only when the percentage is above 50% and is higher than the highest
+                                        if (result > highestMatch && result > 50) {
+                                            //conduct replacement of highest percentage
                                             highestMatch = result;
                                             highestPet = document;  //Get the highest matched result
                                         }
                                         Log.i("HIGHEST", highestMatch + "");
-                                        //TODO: Handle empty result
                                         if (index == task.getResult().size()) {
                                             //Conduct at last document (decision)
                                             if (highestPet != null) {   //If there's result
-                                                displayResult();
+                                                displayResult(false);
                                             } else {   //If all the matching are too low percentage
-
+                                                displayResult(true);
                                             }
 
                                         }
@@ -309,13 +311,38 @@ public class OpenCVActivity extends FragmentActivity  {
         });
     }
 
+    //Function to scale bitmap images into same size of 500x500 for comparison
+    private Bitmap scaleBitmap(Bitmap bm, int maxWidth, int maxHeight) {
+        int width = bm.getWidth();
+        int height = bm.getHeight();
+
+        if (width > height) {
+            // landscape
+            float ratio = (float) width / maxWidth;
+            width = maxWidth;
+            height = (int)(height / ratio);
+        } else if (height > width) {
+            // portrait
+            float ratio = (float) height / maxHeight;
+            height = maxHeight;
+            width = (int)(width / ratio);
+        } else {
+            // square
+            height = maxHeight;
+            width = maxWidth;
+        }
+
+        bm = Bitmap.createScaledBitmap(bm, width, height, true);
+        return bm;
+    }
+
     //Function to conduct image comparisons
     private double startComparison(Bitmap compareImg){
-            //Convert Target Search Bitmap to Mat format
-            Utils.bitmapToMat(targetImage,img1);
 
-            //Convert to Mat
-            Utils.bitmapToMat(compareImg,img2);
+            //Scale both images into same size for more accurate result
+            //Convert Target and Search Bitmap to Mat format
+            Utils.bitmapToMat(scaleBitmap(targetImage,500,500),img1);
+            Utils.bitmapToMat(scaleBitmap(compareImg,500,500),img2);
 
             //Start Feature Extraction with ORB Algo
             detector.detect(img1,matOfKeyPoint1);
@@ -352,14 +379,15 @@ public class OpenCVActivity extends FragmentActivity  {
             Bitmap imageMatched = Bitmap.createBitmap(outputImg.cols(), outputImg.rows(), Bitmap.Config.RGB_565);
             Utils.matToBitmap(outputImg, imageMatched);
 
-            //Calculate Good matches with Lowe's ratio to distinguish and limit unnecessary match points
+            //Calculate Good matches (distance less than ) to distinguish and limit unnecessary match points.
             LinkedList<DMatch> good_matches = new LinkedList<DMatch>();
-            for (int i = 0; i < matchesList.size(); i++) {
-                if (matchesList.get(i).distance <= (1.5 * min_dist))
+            for (int i = 0; i < matchesList.size(); i++) {  //If same image found, wont be distinguished with == min distance checking
+                if (matchesList.get(i).distance > (2 * min_dist) || matchesList.get(i).distance == min_dist) {
                     good_matches.addLast(matchesList.get(i));
+                }
             }
 
-            //If Good Match Result list is not empty
+            //If Good Match Result list is not empty (When the percentage is > 0)
             if(matchesList.size()>0 && good_matches.size()>0) {
                 //Calculate Match Percentage
                 double matchPercent = (100 * good_matches.size()) / matchesList.size();
@@ -390,7 +418,7 @@ public class OpenCVActivity extends FragmentActivity  {
             else{
                 return 0.0;
             }
-
+//Convert to greyscale not necessary, wont affect ORB algo
 //        Bitmap res1 = BitmapFactory.decodeResource(this.getResources(),R.drawable.husky1);
 //        Bitmap res2 = BitmapFactory.decodeResource(this.getResources(),R.drawable.husky3);
 //        Utils.bitmapToMat(res1,img1);
@@ -401,145 +429,158 @@ public class OpenCVActivity extends FragmentActivity  {
     }
 
     //Function to Display Result after last comparison
-    private void displayResult(){
-        //Set view values
-        locationTV.setVisibility(View.VISIBLE);
-        mapFragment.getView().setVisibility(View.VISIBLE);
-        loading.setVisibility(View.GONE);
-        date.setText("Date: "+highestPet.getString("foundDate"));
-        matchPerc.setText("Match Found with Percentage of "+String.format("%.2f", highestMatch)+" %");
+    private void displayResult(boolean noResult){
 
-        if(!OpenCVActivity.this.isFinishing()) {
-            //Load final result Image View
-            Glide.with(OpenCVActivity.this).load(highestPet.getString("url")).listener(new RequestListener<Drawable>() {
-                @Override
-                public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                    Toast.makeText(OpenCVActivity.this, "Image load failed! Exception: " + e.toString(), Toast.LENGTH_SHORT).show();
-                    return false;
-                }
+        if(!noResult) {
 
-                @Override
-                public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                    pb.setVisibility(View.GONE);
-                    return false;
-                }
-            }).into(matchIV);
-        }
+            //Set view values
+            similarTV.setVisibility(View.VISIBLE);
+            locationTV.setVisibility(View.VISIBLE);
+            mapFragment.getView().setVisibility(View.VISIBLE);
+            loading.setVisibility(View.GONE);
+            date.setText("Date: " + highestPet.getString("foundDate"));
+            matchPerc.setText("Match Found with Percentage of " + String.format("%.2f", highestMatch) + " %");
 
-        //Show Pet Location on Google map
-        LatLng latLng;
-        if(highestPet.getString("location")!=null && highestPet.getString("location").length()>0 && highestPet.getString("location").contains(",")) {
-            latLng = new LatLng(Double.parseDouble(highestPet.getString("location").split(", ")[0]), Double.parseDouble(highestPet.getString("location").split(", ")[1]));
+            if (!OpenCVActivity.this.isFinishing()) {
+                //Load final result Image View
+                Glide.with(OpenCVActivity.this).load(highestPet.getString("url")).listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        Toast.makeText(OpenCVActivity.this, "Image load failed! Exception: " + e.toString(), Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        pb.setVisibility(View.GONE);
+                        return false;
+                    }
+                }).into(matchIV);
+            }
+
+            //Show Pet Location on Google map
+            LatLng latLng;
+            if (highestPet.getString("location") != null && highestPet.getString("location").length() > 0 && highestPet.getString("location").contains(",")) {
+                latLng = new LatLng(Double.parseDouble(highestPet.getString("location").split(", ")[0]), Double.parseDouble(highestPet.getString("location").split(", ")[1]));
+            } else {
+                latLng = new LatLng(0.0, 0.0);
+            }
+            mapAPI.clear();
+            MarkerOptions options = new MarkerOptions().position(latLng).title("Pet Location");
+            mapAPI.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+            mapAPI.addMarker(options).showInfoWindow();
+            mapAPI.getUiSettings().setZoomControlsEnabled(true);
+            mapAPI.getUiSettings().setAllGesturesEnabled(true);
+
+            //Get Post Owner Name from database
+            FirebaseFirestore.getInstance().collection("User").document(highestPet.getString("postOwner")).get()
+                    .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                        @Override
+                        public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                            if (task.isSuccessful()) {
+                                report.setVisibility(View.VISIBLE);
+                                report.setEnabled(true);
+                                report.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+                                        reportDialog();
+                                    }
+                                });
+                                contact.setVisibility(View.VISIBLE);
+                                contact.setEnabled(true);
+                                contact.setText("View Contact of " + task.getResult().getString("name"));
+                                contact.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+                                        //Set layout values for dialog box
+                                        ScrollView sv = new ScrollView(OpenCVActivity.this);
+                                        LinearLayout ll = new LinearLayout(OpenCVActivity.this);
+                                        ll.setOrientation(LinearLayout.VERTICAL);
+                                        ll.setGravity(Gravity.CENTER);
+                                        ll.setPadding(32, 32, 32, 32);
+
+                                        TextView nameTV = new TextView(OpenCVActivity.this);
+                                        nameTV.setTextColor(Color.parseColor("#263238"));
+                                        nameTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this, R.font.baloo));
+                                        nameTV.setText("Name: " + task.getResult().getString("name"));
+                                        nameTV.setTextSize(16);
+                                        nameTV.setPadding(36, 32, 36, 32);
+
+                                        TextView hpTV = new TextView(OpenCVActivity.this);
+                                        hpTV.setTextColor(Color.parseColor("#263238"));
+                                        hpTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this, R.font.baloo));
+                                        hpTV.setText("Contact No.: " + task.getResult().getString("hp"));
+                                        hpTV.setTextSize(16);
+                                        hpTV.setPadding(36, 32, 36, 32);
+
+                                        LinearLayout.LayoutParams phoneParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                                        phoneParams.setMargins(8, 8, 8, 32);
+                                        ImageButton phone = new ImageButton(OpenCVActivity.this);
+                                        phone.setImageResource(android.R.drawable.sym_action_call);
+                                        phone.setBackgroundResource(R.drawable.roundedbutton);
+                                        phone.setLayoutParams(phoneParams);
+                                        phone.setOnClickListener(new View.OnClickListener() {
+                                            @Override
+                                            public void onClick(View v) {
+                                                Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + task.getResult().getString("hp")));
+                                                startActivity(intent);
+                                            }
+                                        });
+
+                                        LinearLayout.LayoutParams waParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                                        waParams.setMargins(8, 0, 8, 0);
+                                        ImageButton whatsapp = new ImageButton(OpenCVActivity.this);
+                                        whatsapp.setImageResource(R.drawable.walogo);
+                                        whatsapp.setBackgroundResource(R.drawable.roundedbutton);
+                                        whatsapp.setAdjustViewBounds(true);
+                                        whatsapp.setMaxHeight(150);
+                                        whatsapp.setOnClickListener(new View.OnClickListener() {
+                                            @Override
+                                            public void onClick(View v) {
+                                                String url = "https://api.whatsapp.com/send?phone=" + task.getResult().getString("hp");
+                                                Intent i = new Intent(Intent.ACTION_VIEW);
+                                                i.setData(Uri.parse(url));
+                                                startActivity(i);
+                                            }
+                                        });
+
+                                        ll.addView(nameTV);
+                                        ll.addView(hpTV);
+                                        ll.addView(phone);
+                                        ll.addView(whatsapp);
+                                        sv.addView(ll);
+                                        //Show dialog
+                                        AlertDialog contactDialog;
+                                        AlertDialog.Builder builder = new AlertDialog.Builder(OpenCVActivity.this);
+                                        builder.setTitle("Contact Details")
+                                                .setIcon(android.R.drawable.ic_menu_call)
+                                                .setView(sv)
+                                                .setPositiveButton("Dismiss", new DialogInterface.OnClickListener() {
+                                                    @Override
+                                                    public void onClick(DialogInterface dialog, int which) {
+                                                        dialog.dismiss();
+                                                    }
+                                                });
+                                        contactDialog = builder.create();
+                                        contactDialog.getWindow().setBackgroundDrawableResource(R.drawable.roundeddialog);
+                                        contactDialog.show();
+                                        contactDialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#2196F3"));
+
+                                    }
+                                });
+                            }
+                        }
+                    });
         }
         else{
-            latLng = new LatLng(0.0,0.0);
+            //Set view values
+            pb.setVisibility(View.GONE);
+            similarTV.setVisibility(View.VISIBLE);
+            loading.setText("Unfortunately...we could not find any match of the pet with a reliable percentage. If you happen to find your pet in the below Similar Results section, please try again with a different image of your pet.");
+            loading.setTextColor(Color.parseColor("#FF5252"));
+            loading.setTextSize(16);
+            matchPerc.setText("No Confident Match Found!");
         }
-        mapAPI.clear();
-        MarkerOptions options = new MarkerOptions().position(latLng).title("Pet Location");
-        mapAPI.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,15));
-        mapAPI.addMarker(options).showInfoWindow();
-        mapAPI.getUiSettings().setZoomControlsEnabled(true);
-        mapAPI.getUiSettings().setAllGesturesEnabled(true);
-
-        //Get Post Owner Name from database
-        FirebaseFirestore.getInstance().collection("User").document(highestPet.getString("postOwner")).get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                        if(task.isSuccessful()){
-                            report.setVisibility(View.VISIBLE);
-                            report.setEnabled(true);
-                            report.setOnClickListener(new View.OnClickListener() {
-                                @Override
-                                public void onClick(View v) {
-                                    reportDialog();
-                                }
-                            });
-                            contact.setVisibility(View.VISIBLE);
-                            contact.setEnabled(true);
-                            contact.setText("View Contact of "+task.getResult().getString("name"));
-                            contact.setOnClickListener(new View.OnClickListener() {
-                                @Override
-                                public void onClick(View v) {
-                                    //Set layout values for dialog box
-                                    ScrollView sv = new ScrollView(OpenCVActivity.this);
-                                    LinearLayout ll = new LinearLayout(OpenCVActivity.this);
-                                    ll.setOrientation(LinearLayout.VERTICAL);
-                                    ll.setGravity(Gravity.CENTER);
-                                    ll.setPadding(32,32,32,32);
-
-                                    TextView nameTV = new TextView(OpenCVActivity.this);
-                                    nameTV.setTextColor(Color.parseColor("#263238"));
-                                    nameTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-                                    nameTV.setText("Name: "+task.getResult().getString("name"));
-                                    nameTV.setTextSize(16);
-                                    nameTV.setPadding(36,32,36,32);
-
-                                    TextView hpTV = new TextView(OpenCVActivity.this);
-                                    hpTV.setTextColor(Color.parseColor("#263238"));
-                                    hpTV.setTypeface(ResourcesCompat.getFont(OpenCVActivity.this,R.font.baloo));
-                                    hpTV.setText("Contact No.: "+task.getResult().getString("hp"));
-                                    hpTV.setTextSize(16);
-                                    hpTV.setPadding(36,32,36,32);
-
-                                    LinearLayout.LayoutParams phoneParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
-                                    phoneParams.setMargins(8,8,8,32);
-                                    ImageButton phone = new ImageButton(OpenCVActivity.this);
-                                    phone.setImageResource(android.R.drawable.sym_action_call);
-                                    phone.setBackgroundResource(R.drawable.roundedbutton);
-                                    phone.setLayoutParams(phoneParams);
-                                    phone.setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View v) {
-                                            Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + task.getResult().getString("hp")));
-                                            startActivity(intent);
-                                        }
-                                    });
-
-                                    LinearLayout.LayoutParams waParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
-                                    waParams.setMargins(8,0,8,0);
-                                    ImageButton whatsapp = new ImageButton(OpenCVActivity.this);
-                                    whatsapp.setImageResource(R.drawable.walogo);
-                                    whatsapp.setBackgroundResource(R.drawable.roundedbutton);
-                                    whatsapp.setAdjustViewBounds(true);
-                                    whatsapp.setMaxHeight(150);
-                                    whatsapp.setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View v) {
-                                            String url = "https://api.whatsapp.com/send?phone="+task.getResult().getString("hp");
-                                            Intent i = new Intent(Intent.ACTION_VIEW);
-                                            i.setData(Uri.parse(url));
-                                            startActivity(i);
-                                        }
-                                    });
-
-                                    ll.addView(nameTV);
-                                    ll.addView(hpTV);
-                                    ll.addView(phone);
-                                    ll.addView(whatsapp);
-                                    sv.addView(ll);
-                                    //Show dialog
-                                    AlertDialog contactDialog;
-                                    AlertDialog.Builder builder = new AlertDialog.Builder(OpenCVActivity.this);
-                                    builder.setTitle("Contact Details")
-                                            .setIcon(android.R.drawable.ic_menu_call)
-                                            .setView(sv)
-                                            .setPositiveButton("Dismiss", new DialogInterface.OnClickListener() {
-                                                @Override
-                                                public void onClick(DialogInterface dialog, int which) {
-                                                    dialog.dismiss();
-                                                }
-                                            });
-                                    contactDialog = builder.create();
-                                    contactDialog.getWindow().setBackgroundDrawableResource(R.drawable.roundeddialog);
-                                    contactDialog.show();
-                                    contactDialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#2196F3"));
-
-                                }
-                            });
-                        }
-                    }
-                });
 
     }
 

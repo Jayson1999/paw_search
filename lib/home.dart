@@ -522,6 +522,42 @@ class _State extends State<Home> {
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: RaisedButton.icon(
+                    color: Colors.redAccent,
+                    label: Text("Logout",style: TextStyle(color: Colors.white)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    icon: Icon(Icons.exit_to_app,color: Colors.white,),
+                    onPressed: (){
+                      showDialog(
+                          context: context,
+                          builder: (BuildContext context){
+                            return AlertDialog(
+                              title: Text("Sign Out"),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              content: Text("Are you sure you want to sign out?"),
+                              actions: <Widget>[
+                                FlatButton(
+                                  child: Text("Confirm",style: TextStyle(color: Colors.blue)),
+                                  onPressed: ()async{
+                                    Navigator.pop(context);
+                                    await FireAuth().signOutUser();
+                                  },
+                                ),
+                                FlatButton(
+                                  child: Text("Cancel",style: TextStyle(color: Colors.red)),
+                                  onPressed: (){
+                                    Navigator.pop(context);
+                                  },
+                                )
+                              ],
+                            );
+                        }
+                      );
+                    },
+                  ),
+                )
               ],
             ),
           ),
@@ -1159,14 +1195,13 @@ class _State extends State<Home> {
       loadingMsg = "Inferencing with Models...";
     });
 
-    //Conduct OpenCV img processing before classification
-    //TODO:Remove unwanted classifications, Add second processing here (OPENCV, segmentation, threshold, compare), Create OOP Class
+    //TODO:Remove unwanted classifications, set threshold value (Use Confusion Matrix)
 
     var recognitions = await Tflite.runModelOnImage(
         path: _image.path, // required
         imageMean: 0.0, // defaults to 117.0
         imageStd: 255.0, // defaults to 1.0
-        threshold: 1 / 24, // defaults to 0.1
+        threshold: 1/24, // defaults to 0.1
         asynch: true // defaults to true
         );
 
@@ -1175,7 +1210,7 @@ class _State extends State<Home> {
 
     var classification; //Store Classification Result
     double highestConf = 0;
-    //Post-processing 3 (Remove lower than 50% confidence classification)
+    //Post-processing 3 (Get the highest Confidence & Remove lower than 50% confidence classification)
     recognitions.forEach((element) {
       if (element["confidence"] > highestConf && element["confidence"] > 0.5) {
         highestConf = element["confidence"];
@@ -1241,6 +1276,7 @@ class _State extends State<Home> {
 
     //If no class-match found
     else {
+      print(recognitions.toString());
       _scaffoldKey.currentState.showSnackBar(SnackBar(
         backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,

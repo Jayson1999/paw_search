@@ -99,18 +99,19 @@
                 app:layout_constraintStart_toStartOf="parent">
 
                 <TextView
-                    android:id="@+id/textView"
+                    android:id="@+id/similarTV"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/baloo"
                     android:text="Similar Results of Matches Made: "
-                    android:textColor="#263238" />
+                    android:textColor="#263238"
+                    android:visibility="gone" />
 
                 <HorizontalScrollView
-                    android:fillViewport="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center">
+                    android:layout_gravity="center"
+                    android:fillViewport="true">
 
                     <LinearLayout
                         android:id="@+id/matchedLayout"
