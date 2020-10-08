@@ -641,8 +641,11 @@ class _State extends State<Home> {
                 );
               } else {
                 return Center(
-                    child: Text(
-                        "No Reports Found! Begin the search process to file a new report."));
+                    child: Padding(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Text(
+                          "No Reports Found! Begin the search process to file a new report.",textAlign: TextAlign.center,),
+                    ));
               }
             } else {
               return Center(
