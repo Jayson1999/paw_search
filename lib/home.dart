@@ -34,6 +34,8 @@ class _State extends State<Home> {
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<
       ScaffoldState>(); //Scaffold key to show Scaffold widgets of Bottom Sheet and SnackBar
 
+  final GlobalKey _imgKey = GlobalKey();
+
   ScrollController _scrollController;
   bool postSelected = false;
   bool profSelected = false; //Track if profile is clicked
@@ -47,6 +49,16 @@ class _State extends State<Home> {
   double _imageWidth;
   double _imageHeight;
   File croppedImg;
+  bool cropBoxChanged = false;
+  //New variables to store new positions if crop box changed
+  double newBoxLeft;
+  double newBoxTop;
+  double newBoxWidth;
+  double newBoxHeight;
+  int newCropLeft;
+  int newCropTop;
+  int newCropWidth;
+  int newCropHeight;
 
   @override
   void initState() {
@@ -170,7 +182,8 @@ class _State extends State<Home> {
                           postSelected = false;
                           profSelected = false;
                         } else {
-                          getPosts = userPosts();  //Reload new results each time it's clicked
+                          getPosts =
+                              userPosts(); //Reload new results each time it's clicked
                           postSelected = true;
                           profSelected = false;
                         }
@@ -491,9 +504,9 @@ class _State extends State<Home> {
       color: Theme.of(context).primaryColor,
       duration: Duration(milliseconds: 250),
       width: profSelected ? MediaQuery.of(context).size.width : 0,
-      height: profSelected ? 160 : 0,
+      height: profSelected ? 170 : 0,
       child: Container(
-        height: 160,
+        height: 170,
         child: Center(
           child: SingleChildScrollView(
             child: Column(
@@ -522,40 +535,50 @@ class _State extends State<Home> {
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: RaisedButton.icon(
-                    color: Colors.redAccent,
-                    label: Text("Logout",style: TextStyle(color: Colors.white)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    icon: Icon(Icons.exit_to_app,color: Colors.white,),
-                    onPressed: (){
-                      showDialog(
-                          context: context,
-                          builder: (BuildContext context){
-                            return AlertDialog(
-                              title: Text("Sign Out"),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              content: Text("Are you sure you want to sign out?"),
-                              actions: <Widget>[
-                                FlatButton(
-                                  child: Text("Confirm",style: TextStyle(color: Colors.blue)),
-                                  onPressed: ()async{
-                                    Navigator.pop(context);
-                                    await FireAuth().signOutUser();
-                                  },
-                                ),
-                                FlatButton(
-                                  child: Text("Cancel",style: TextStyle(color: Colors.red)),
-                                  onPressed: (){
-                                    Navigator.pop(context);
-                                  },
-                                )
-                              ],
-                            );
-                        }
-                      );
-                    },
+                Center(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: RaisedButton.icon(
+                      color: Colors.redAccent,
+                      label:
+                          Text("Logout", style: TextStyle(color: Colors.white)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      icon: Icon(
+                        Icons.exit_to_app,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text("Sign Out"),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                content:
+                                    Text("Are you sure you want to sign out?"),
+                                actions: <Widget>[
+                                  FlatButton(
+                                    child: Text("Confirm",
+                                        style: TextStyle(color: Colors.blue)),
+                                    onPressed: () async {
+                                      Navigator.pop(context);
+                                      await FireAuth().signOutUser();
+                                    },
+                                  ),
+                                  FlatButton(
+                                    child: Text("Cancel",
+                                        style: TextStyle(color: Colors.red)),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                  )
+                                ],
+                              );
+                            });
+                      },
+                    ),
                   ),
                 )
               ],
@@ -601,7 +624,11 @@ class _State extends State<Home> {
                                     MainAxisAlignment.spaceBetween,
                                 children: <Widget>[
                                   Expanded(
-                                      child: Text("Report Type: "+snapshot.data.elementAt(index).data["type"]+"\nBreed: " +
+                                      child: Text("Report Type: " +
+                                          snapshot.data
+                                              .elementAt(index)
+                                              .data["type"] +
+                                          "\nBreed: " +
                                           snapshot.data
                                               .elementAt(index)
                                               .data["breed"] +
@@ -642,10 +669,12 @@ class _State extends State<Home> {
               } else {
                 return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(30.0),
-                      child: Text(
-                          "No Reports Found! Begin the search process to file a new report.",textAlign: TextAlign.center,),
-                    ));
+                  padding: const EdgeInsets.all(30.0),
+                  child: Text(
+                    "No Reports Found! Begin the search process to file a new report.",
+                    textAlign: TextAlign.center,
+                  ),
+                ));
               }
             } else {
               return Center(
@@ -762,7 +791,7 @@ class _State extends State<Home> {
                     ));
                     //Refresh state
                     setState(() {
-                      getPosts = userPosts();  //Reload new results
+                      getPosts = userPosts(); //Reload new results
                       postSelected = false;
                     });
                   }
@@ -900,15 +929,122 @@ class _State extends State<Home> {
         })));
   }
 
+  //The widgets inside Draggable
+  Widget draggableItem(double boxWidth, double boxHeight, int cropLeft,
+      int cropTop, int cropWidth, int cropHeight, MaterialColor objectColor) {
+    return Container(
+      width: boxWidth,
+      height: boxHeight,
+      decoration: BoxDecoration(
+          border: Border.all(
+        color: objectColor,
+        width: 3,
+      )),
+      child: FlatButton(
+        color: Colors.transparent,
+        onPressed: () async {
+          showLoadingDialog(context, "Processing & Cropping Image");
+          //Conduct Image Cropping on Box Select
+          croppedImg = await FlutterNativeImage.cropImage(
+                  _image.path, cropLeft, cropTop, cropWidth, cropHeight)
+              .catchError((onError) {
+            Navigator.pop(context);
+            print("Crop Failed! Rect not found! " + onError.toString());
+          });
+          Navigator.pop(context);
+
+          showDialog(
+              context: context,
+              builder: (BuildContext context1) {
+                return AlertDialog(
+                  elevation: 10,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20.0)),
+                  title: Row(
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Icon(Icons.crop),
+                      ),
+                      Text(
+                        "Cropped Image: ",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        FadeInImage(
+                          placeholder:
+                              Image.asset("assets/images/loading.gif").image,
+                          image: Image.file(croppedImg).image,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 15.0),
+                          child: Container(
+                            width: MediaQuery.of(context1).size.width,
+                            child: RaisedButton.icon(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0)),
+                              onPressed: () async {
+                                setState(() {
+                                  _image = croppedImg;
+                                });
+                                Navigator.pop(context1);
+                                Navigator.pop(context);
+                                //Conduct Image Classification on Cropped Image
+                                findType(context);
+                              },
+                              icon: Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.white,
+                              ),
+                              label: Text(
+                                "Proceed",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ),
+                        FlatButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context1);
+                          },
+                          icon: Icon(
+                            Icons.cancel,
+                            color: Colors.redAccent,
+                          ),
+                          label: Text(
+                            "Cancel",
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                          color: Colors.white,
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              });
+        },
+      ),
+    );
+  }
+
   //Function to display selectable boxes on the predicted object locations on the image
-  List<Widget> renderBoxes(Size screen) {
+  List<Widget> renderBoxes(Size screen, StateSetter setInnerState) {
     if (_detections == null) return [];
     if (_imageWidth == null || _imageHeight == null) return [];
 
     //Post-process 2 (Obj Det)
     double factorX = screen.width;
-    double factorY = _imageHeight / _imageHeight * screen.width;
+    double factorY = _imageHeight / _imageWidth * screen.width;
     MaterialColor objectColor;
+
     //Show Boxes on Locations of Filtered Objects and categorize with colors
     return _detections.map((re) {
       if (re["detectedClass"] == "bird" ||
@@ -928,115 +1064,65 @@ class _State extends State<Home> {
       } else {
         objectColor = Colors.red;
       }
-      return Positioned(
-        left: re["rect"]["x"] * factorX,
-        top: re["rect"]["y"] * factorY,
-        width: re["rect"]["w"] * factorX,
-        height: re["rect"]["h"] * factorY,
-        child: Container(
-          decoration: BoxDecoration(
-              border: Border.all(
-            color: objectColor,
-            width: 3,
-          )),
-          child: FlatButton(
-            color: Colors.transparent,
-            onPressed: () async {
-              showLoadingDialog(context, "Processing & Cropping Image");
-              //Conduct Image Cropping on Box Select
-              croppedImg = await FlutterNativeImage.cropImage(
-                      _image.path,
-                      (re["rect"]["x"] * _imageWidth).floor(),
-                      (re["rect"]["y"] * _imageHeight).floor(),
-                      (re["rect"]["w"] * _imageWidth).floor(),
-                      (re["rect"]["h"] * _imageHeight).floor())
-                  .catchError((onError) {
-                Navigator.pop(context);
-                print("Crop Failed! Rect not found! " + onError.toString());
-              });
-              Navigator.pop(context);
 
-              showDialog(
-                  context: context,
-                  builder: (BuildContext context1) {
-                    return AlertDialog(
-                      elevation: 10,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20.0)),
-                      title: Row(
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Icon(Icons.crop),
-                          ),
-                          Text(
-                            "Cropped Image: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            FadeInImage(
-                              placeholder:
-                                  Image.asset("assets/images/loading.gif")
-                                      .image,
-                              image: Image.file(croppedImg).image,
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 15.0),
-                              child: Container(
-                                width: MediaQuery.of(context1).size.width,
-                                child: RaisedButton.icon(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10.0)),
-                                  onPressed: () async {
-                                    setState(() {
-                                      _image = croppedImg;
-                                    });
-                                    Navigator.pop(context1);
-                                    Navigator.pop(context);
-                                    //Conduct Image Classification on Cropped Image
-                                    findType(context);
-                                  },
-                                  icon: Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.white,
-                                  ),
-                                  label: Text(
-                                    "Proceed",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                            FlatButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context1);
-                              },
-                              icon: Icon(
-                                Icons.cancel,
-                                color: Colors.redAccent,
-                              ),
-                              label: Text(
-                                "Cancel",
-                                style: TextStyle(color: Colors.redAccent),
-                              ),
-                              color: Colors.white,
-                            )
-                          ],
-                        ),
-                      ),
-                    );
-                  });
-            },
-          ),
+      //Calculate boxes of crop
+      double boxLeft = !cropBoxChanged ? re["rect"]["x"] * factorX : newBoxLeft;
+      double boxTop = !cropBoxChanged ? re["rect"]["y"] * factorY : newBoxTop;
+      double boxWidth =
+          !cropBoxChanged ? re["rect"]["w"] * factorX : newBoxWidth;
+      double boxHeight =
+          !cropBoxChanged ? re["rect"]["h"] * factorY : newBoxHeight;
+
+      //Calculate actual image crop offsets
+      int cropLeft = !cropBoxChanged
+          ? (re["rect"]["x"] * _imageWidth).floor()
+          : newCropLeft;
+      int cropTop = !cropBoxChanged
+          ? (re["rect"]["y"] * _imageHeight).floor()
+          : newCropTop;
+      int cropWidth = !cropBoxChanged
+          ? (re["rect"]["w"] * _imageWidth).floor()
+          : newCropWidth;
+      int cropHeight = !cropBoxChanged
+          ? (re["rect"]["h"] * _imageHeight).floor()
+          : newCropHeight;
+
+      //TODO: Check on Landscape, Add Resizable
+      return Positioned(
+        left: boxLeft,
+        top: boxTop,
+        width: boxWidth,
+        height: boxHeight,
+        child: Draggable(
+          childWhenDragging: Container(),
+          child: draggableItem(boxWidth, boxHeight, cropLeft, cropTop,
+              cropWidth, cropHeight, objectColor),
+          feedback: draggableItem(boxWidth, boxHeight, cropLeft, cropTop,
+              cropWidth, cropHeight, objectColor),
+          onDragEnd: (details) {
+            RenderBox renderBox = _imgKey.currentContext.findRenderObject();
+            Offset _position = renderBox.globalToLocal(details.offset);
+
+            //Validate dropped offset before setting new offset
+            if (_position.dx + boxWidth <= screen.width &&    //check x-axis's right part
+                _position.dx > 0 &&   //check x-axis's left part
+                _position.dy <= _position.dy * _imageHeight / _imageWidth * screen.width &&   //check y-axis's top part
+                _position.dy + boxHeight <= _imageHeight/_imageWidth * screen.width   //check y-axis's bottom part
+            ) {
+              setInnerState(() {
+                newBoxLeft = _position.dx;
+                newBoxTop = _position.dy;
+                newBoxWidth = boxWidth;
+                newBoxHeight = boxHeight;
+                newCropLeft = (_position.dx / screen.width * _imageWidth)
+                    .floor(); //Get the position for cropping based on screen size
+                newCropTop = (_position.dy / screen.width * _imageWidth).floor();
+                newCropWidth = cropWidth;
+                newCropHeight = cropHeight;
+                cropBoxChanged = true;
+              });
+            }
+          },
         ),
       );
     }).toList();
@@ -1069,11 +1155,27 @@ class _State extends State<Home> {
               ),
             )),
             Center(
-              child: Stack(
-                children: <Widget>[
-                  Image.file(_image),
-                ]..addAll(renderBoxes(MediaQuery.of(context).size)),
-              ),
+              child: StatefulBuilder(builder: (context, setInnerState) {
+                return Stack(
+                  children: <Widget>[
+                    DragTarget(
+                      builder: (context, List candidateData, rejectedData) {
+                        return Image.file(
+                          _image,
+                          key: _imgKey,
+                        );
+                      },
+                      onAccept: (data) {
+                        return true;
+                      },
+                      onWillAccept: (data) {
+                        return true;
+                      },
+                    ),
+                  ]..addAll(
+                      renderBoxes(MediaQuery.of(context).size, setInnerState)),
+                );
+              }),
             ),
             Padding(
               padding: const EdgeInsets.all(30.0),
@@ -1156,6 +1258,9 @@ class _State extends State<Home> {
               padding: const EdgeInsets.only(bottom: 15.0),
               child: FlatButton.icon(
                 onPressed: () {
+                  setState(() {
+                    cropBoxChanged = false;
+                  });
                   Navigator.pop(context);
                 },
                 icon: Icon(
@@ -1182,6 +1287,7 @@ class _State extends State<Home> {
 
   //Function to conduct image classification on processed image
   findType(BuildContext context) async {
+    cropBoxChanged = false;
     //show loading dialog upon initializing
     showLoadingDialog(context, loadingMsg);
 
@@ -1204,7 +1310,7 @@ class _State extends State<Home> {
         path: _image.path, // required
         imageMean: 0.0, // defaults to 117.0
         imageStd: 255.0, // defaults to 1.0
-        threshold: 1/24, // defaults to 0.1
+        threshold: 1 / 24, // defaults to 0.1
         asynch: true // defaults to true
         );
 
