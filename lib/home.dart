@@ -948,7 +948,6 @@ class _State extends State<Home> {
           croppedImg = await FlutterNativeImage.cropImage(
                   _image.path, cropLeft, cropTop, cropWidth, cropHeight)
               .catchError((onError) {
-            Navigator.pop(context);
             print("Crop Failed! Rect not found! " + onError.toString());
           });
           Navigator.pop(context);
@@ -981,7 +980,11 @@ class _State extends State<Home> {
                         FadeInImage(
                           placeholder:
                               Image.asset("assets/images/loading.gif").image,
-                          image: Image.file(croppedImg).image,
+                          image: croppedImg != null
+                              ? Image.file(croppedImg).image
+                              : Image.network(
+                                      "https://kajidata.com/resources/2019/02/error.jpeg")
+                                  .image,
                         ),
                         Padding(
                           padding: const EdgeInsets.only(top: 15.0),
@@ -1041,8 +1044,16 @@ class _State extends State<Home> {
     if (_imageWidth == null || _imageHeight == null) return [];
 
     //Post-process 2 (Obj Det)
-    double factorX = screen.width;
-    double factorY = _imageHeight / _imageWidth * screen.width;
+    double factorX;
+    double factorY;
+    if (screen.width > _imageWidth) {
+      //Check if screen_width allows full image width
+      factorX = _imageWidth;
+      factorY = _imageHeight / _imageWidth * _imageWidth;
+    } else {
+      factorX = screen.width;
+      factorY = _imageHeight / _imageWidth * screen.width;
+    }
     MaterialColor objectColor;
 
     //Show Boxes on Locations of Filtered Objects and categorize with colors
@@ -1104,19 +1115,76 @@ class _State extends State<Home> {
             Offset _position = renderBox.globalToLocal(details.offset);
 
             //Validate dropped offset before setting new offset
-            if (_position.dx + boxWidth <= screen.width &&    //check x-axis's right part
-                _position.dx > 0 &&   //check x-axis's left part
-                _position.dy <= _position.dy * _imageHeight / _imageWidth * screen.width &&   //check y-axis's top part
-                _position.dy + boxHeight <= _imageHeight/_imageWidth * screen.width   //check y-axis's bottom part
-            ) {
+            if (screen.width <=
+                        _imageWidth && //Check if image width exceeds screen width
+                    _position.dx + boxWidth <=
+                        screen.width && //check x-axis's right part
+                    _position.dx > 0 && //check x-axis's left part
+                    _position.dy <=
+                        _position.dy *
+                            _imageHeight /
+                            _imageWidth *
+                            screen.width && //check y-axis's top part
+                    _position.dy + boxHeight <=
+                        _imageHeight /
+                            _imageWidth *
+                            screen.width //check y-axis's bottom part
+                ) {
               setInnerState(() {
                 newBoxLeft = _position.dx;
                 newBoxTop = _position.dy;
                 newBoxWidth = boxWidth;
                 newBoxHeight = boxHeight;
-                newCropLeft = (_position.dx / screen.width * _imageWidth)
-                    .floor(); //Get the position for cropping based on screen size
-                newCropTop = (_position.dy / screen.width * _imageWidth).floor();
+                if (screen.width > _imageWidth) {
+                  //Check if screen_width allows full image width
+                  newCropLeft =
+                      (_position.dx / _imageWidth * _imageWidth).floor();
+                  newCropTop =
+                      (_position.dy / _imageWidth * _imageWidth).floor();
+                } else {
+                  newCropLeft = (_position.dx / screen.width * _imageWidth)
+                      .floor(); //Get the position for cropping based on screen size
+                  newCropTop =
+                      (_position.dy / screen.width * _imageWidth).floor();
+                }
+                newCropWidth = cropWidth;
+                newCropHeight = cropHeight;
+                cropBoxChanged = true;
+              });
+            }
+            //If screen width exceeds image width
+            else if (screen.width >
+                        _imageWidth && //Check if screen size exceeds width
+                    _position.dx + boxWidth <=
+                        _imageWidth && //check x-axis's right part
+                    _position.dx > 0 && //check x-axis's left part
+                    _position.dy <=
+                        _position.dy *
+                            _imageHeight /
+                            _imageWidth *
+                            _imageWidth && //check y-axis's top part
+                    _position.dy + boxHeight <=
+                        _imageHeight /
+                            _imageWidth *
+                            _imageWidth //check y-axis's bottom part
+                ) {
+              setInnerState(() {
+                newBoxLeft = _position.dx;
+                newBoxTop = _position.dy;
+                newBoxWidth = boxWidth;
+                newBoxHeight = boxHeight;
+                if (screen.width > _imageWidth) {
+                  //Check if screen_width allows full image width
+                  newCropLeft =
+                      (_position.dx / _imageWidth * _imageWidth).floor();
+                  newCropTop =
+                      (_position.dy / _imageWidth * _imageWidth).floor();
+                } else {
+                  newCropLeft = (_position.dx / screen.width * _imageWidth)
+                      .floor(); //Get the position for cropping based on screen size
+                  newCropTop =
+                      (_position.dy / screen.width * _imageWidth).floor();
+                }
                 newCropWidth = cropWidth;
                 newCropHeight = cropHeight;
                 cropBoxChanged = true;
