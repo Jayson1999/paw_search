@@ -189,12 +189,7 @@ class _State extends State<Home> {
                         }
                       });
                     },
-                    child: Center(
-                      child: CircleAvatar(
-                        backgroundImage:
-                            AssetImage("assets/images/pawslogo.png"),
-                      ),
-                    ),
+                    child: !postSelected?Icon(Icons.assignment,color: Colors.white):Icon(Icons.keyboard_arrow_up),
                   ),
                   actions: <Widget>[
                     IconButton(
@@ -218,9 +213,10 @@ class _State extends State<Home> {
                     )
                   ],
                   title: Text(
-                    !profSelected && !postSelected
+                    !profSelected && !postSelected && !imgSelected
                         ? "Welcome " + _user.name + "!"
-                        : postSelected ? "Your Reports" : "Profile",
+                        : postSelected ? "Your Reports" : profSelected ? "Profile"
+                        : "Begin Search",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   centerTitle: true,
@@ -244,9 +240,8 @@ class _State extends State<Home> {
                                     child: Padding(
                                     padding: const EdgeInsets.all(8.0),
                                     child: Text(
-                                      "Selected Image: ",
+                                      "Selected Image",
                                       style: TextStyle(
-                                          fontWeight: FontWeight.bold,
                                           fontSize: 24),
                                     ),
                                   )),
@@ -1221,7 +1216,7 @@ class _State extends State<Home> {
                 child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                "Pet Image",
+                "Pet's Image",
                 style: TextStyle(fontSize: 20),
               ),
             )),
@@ -1305,6 +1300,17 @@ class _State extends State<Home> {
                             },
                             color: Theme.of(context).primaryColor,
                           ),
+                          RaisedButton.icon(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20.0)),
+                            icon: Icon(Icons.help, color: Colors.white),
+                            label: Text("Tips",
+                                style: TextStyle(color: Colors.white)),
+                            onPressed: () {
+                              showTipsDialog();
+                            },
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ],
                       );
                     });
@@ -1353,6 +1359,78 @@ class _State extends State<Home> {
         ),
       ),
     );
+  }
+
+  //Function to show tips dialog
+  showTipsDialog(){
+    showDialog(
+        context: context,
+        builder: (BuildContext context1) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0)),
+            title: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.help,
+                  color: Colors.amber,
+                ),
+                FittedBox(
+                  child: Text(" Tips to Select Image",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                      "For better detection and classification, select pet's image that is highly focused where background can be easily distinguished from the pet."),
+                  Padding(
+                    padding: const EdgeInsets.only(top:16.0),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.done,color: Colors.green,),
+                        Text(" Good Example",style:TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  FadeInImage(
+                    placeholder: Image.asset(
+                        "assets/images/loading.gif")
+                        .image,
+                    image: Image.asset("assets/images/goodexmp.jpg").image,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top:16.0),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.not_interested,color: Colors.red,),
+                        Text(" Bad Example",style:TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  FadeInImage(
+                    placeholder: Image.asset(
+                        "assets/images/loading.gif")
+                        .image,
+                    image: Image.asset("assets/images/badexmp.jpg").image,
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              FlatButton(
+                child: Text("Dismiss",
+                    style: TextStyle(color: Colors.blue)),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          );
+        });
   }
 
   //Function to conduct image classification on processed image
@@ -1427,7 +1505,7 @@ class _State extends State<Home> {
               content: Text(breed +
                   " detected with " +
                   (classification["confidence"] * 100).toStringAsFixed(2) +
-                  "% confidence."),
+                  "% confidence.\n\nIf this is not the pet's breed class, Cancel & Try again with another image of the pet."),
               actions: <Widget>[
                 FlatButton.icon(
                     onPressed: () {
