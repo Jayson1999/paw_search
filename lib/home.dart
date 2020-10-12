@@ -255,12 +255,12 @@ class _State extends State<Home> {
                                     "assets/images/gallery.png",
                                   )
                                 : Padding(
-                                    padding: const EdgeInsets.all(8.0),
+                                    padding: const EdgeInsets.all(10.0),
                                     child: FadeInImage(
                                       placeholder: Image.asset(
                                               "assets/images/loading.gif")
                                           .image,
-                                      image: Image.file(_image).image,
+                                      image: Image.file(_image,width: 500,height: 500,).image,
                                     ),
                                   ),
                             Padding(
@@ -364,8 +364,11 @@ class _State extends State<Home> {
                                                         mainAxisSize:
                                                             MainAxisSize.min,
                                                         children: <Widget>[
-                                                          Text(
-                                                              "The app will conduct search on the database before allowing to file a new report on both functions."),
+                                                          Padding(
+                                                            padding: const EdgeInsets.only(bottom:20.0),
+                                                            child: Text(
+                                                                "Search will be conducted throughout the database before allowing the filing of a new report on both functions.",),
+                                                          ),
                                                           Container(
                                                             width: 150,
                                                             child: FittedBox(
@@ -1249,11 +1252,10 @@ class _State extends State<Home> {
               padding: const EdgeInsets.all(30.0),
               child: Text(
                 _detections.length < 1
-                    ? "No Object have been detected in the image...\nYou may choose to proceed with the whole image..."
+                    ? "1. No Object have been detected in the image...\n\n2. However, you may choose to proceed with the whole image..."
                     : _detections.length > 1
-                        ? "Multiple Objects have been detected. \nTap on the box on the image to select the pet for searching."
-                        : "An Object is detected on the image. \nSelect on the box to crop the image or Proceed with the whole image.",
-                textAlign: TextAlign.center,
+                        ? "1. Multiple Objects have been detected. \n\n2. Drag and lead the box to the pet's location. \n\n3. Tap on the box on the image to select the pet for searching."
+                        : "1. An Object is detected on the image. \n\n2. Drag and lead the box to the pet's location. \n\n3. Tap on the box to crop the image.",
               ),
             ),
             RaisedButton.icon(
@@ -1275,7 +1277,7 @@ class _State extends State<Home> {
                           ],
                         ),
                         content: Text(
-                            "Please be advised that Proceeding with the Whole Image may affect accuracy of the search. You can choose to Go Back and Select another image or Proceed Anyway"),
+                            "Please be advised that Proceeding with the Whole Image may affect accuracy of the search."),
                         actions: <Widget>[
                           RaisedButton.icon(
                             shape: RoundedRectangleBorder(
@@ -1323,7 +1325,7 @@ class _State extends State<Home> {
                   borderRadius: BorderRadius.circular(20.0)),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 15.0),
+              padding: const EdgeInsets.only(bottom: 20.0),
               child: FlatButton.icon(
                 onPressed: () {
                   setState(() {
@@ -1457,7 +1459,7 @@ class _State extends State<Home> {
       _scaffoldKey.currentState.showSnackBar(SnackBar(
         backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 5),
+        duration: Duration(seconds: 6),
         content: Text(
           "Are you sure this is a pet image?\n We could not find any related breed on the image...Maybe try another pet image.",
           textAlign: TextAlign.center,

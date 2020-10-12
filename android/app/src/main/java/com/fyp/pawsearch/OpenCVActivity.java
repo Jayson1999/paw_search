@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
@@ -128,8 +129,9 @@ public class OpenCVActivity extends FragmentActivity  {
         setContentView(R.layout.activity_open_c_v);
 
         //custom App Bar
-        getActionBar().setTitle(" Pet Matching ");
-        getActionBar().setIcon(android.R.drawable.ic_menu_search);
+        getActionBar().setBackgroundDrawable(new ColorDrawable());
+        getActionBar().setDisplayShowCustomEnabled(true);
+        getActionBar().setCustomView(R.layout.customappbar);
 
         //initialize view
         matchIV = (ImageView) findViewById(R.id.matchIV);
