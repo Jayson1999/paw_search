@@ -255,7 +255,7 @@ class _State extends State<Home> {
                                       placeholder: Image.asset(
                                               "assets/images/loading.gif")
                                           .image,
-                                      image: Image.file(_image,width: 500,height: 500,).image,
+                                      image: Image.file(_image).image,
                                     ),
                                   ),
                             Padding(
@@ -1041,7 +1041,7 @@ class _State extends State<Home> {
     if (_detections == null) return [];
     if (_imageWidth == null || _imageHeight == null) return [];
 
-    //Post-process 2 (Obj Det)
+    //Post-process (Obj Det)
     double factorX;
     double factorY;
     if (screen.width > _imageWidth) {
@@ -1096,7 +1096,6 @@ class _State extends State<Home> {
           ? (re["rect"]["h"] * _imageHeight).floor()
           : newCropHeight;
 
-      //TODO: Check on Landscape, Add Resizable
       return Positioned(
         left: boxLeft,
         top: boxTop,
@@ -1452,8 +1451,6 @@ class _State extends State<Home> {
       loadingMsg = "Inferencing with Models...";
     });
 
-    //TODO:Remove unwanted classifications, set threshold value (Use Confusion Matrix)
-
     var recognitions = await Tflite.runModelOnImage(
         path: _image.path, // required
         imageMean: 0.0, // defaults to 117.0
@@ -1467,7 +1464,7 @@ class _State extends State<Home> {
 
     var classification; //Store Classification Result
     double highestConf = 0;
-    //Post-processing 3 (Get the highest Confidence & Remove lower than 50% confidence classification)
+    //Post-processing (Get the highest Confidence & Remove lower than 50% confidence classification)
     recognitions.forEach((element) {
       if (element["confidence"] > highestConf && element["confidence"] > 0.5) {
         highestConf = element["confidence"];
