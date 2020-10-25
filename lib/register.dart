@@ -1,6 +1,3 @@
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -268,25 +265,11 @@ class _RegisterSheetState extends State<RegisterSheet> {
         .signInWithCredential(credential)
         .then((value) async {
       if (value.user != null) {
-        //Check if user exist in database before registering
-        DocumentSnapshot userInDB = await Firestore.instance
-            .collection("User")
-            .document(value.user.uid.toString())
-            .get();
-        //If user not exist in database only register user
-        if (!userInDB.exists) {
-          String addToDB = await Database(value.user.uid).setUser(name, hp);
-          //On DB side error
-          if (addToDB != "OK") {
-            error = true;
-            errorMsg = addToDB;
-          }
-        }
-        //If user already exist
-        else {
+        String addToDB = await Database(value.user.uid).setUser(name, hp);
+        //On DB side error
+        if (addToDB != "OK") {
           error = true;
-          errorMsg = "User already Exist! Please Login to Continue";
-          await FireAuth().signOutUser();
+          errorMsg = addToDB;
         }
       } else {
         error = true;
@@ -296,6 +279,7 @@ class _RegisterSheetState extends State<RegisterSheet> {
       error = true;
       errorMsg = onError.toString();
     });
+
     //show error message
     if (error) {
       Fluttertoast.showToast(
@@ -304,6 +288,7 @@ class _RegisterSheetState extends State<RegisterSheet> {
           textColor: Colors.white,
           toastLength: Toast.LENGTH_LONG);
     }
+
   }
 
   _veriFailed(AuthException exception) {
@@ -347,8 +332,8 @@ class _RegisterSheetState extends State<RegisterSheet> {
           TextEditingController vcController = new TextEditingController();
           return StatefulBuilder(builder: (context, _setStateTime) {
             return WillPopScope(
-              onWillPop: () async {
-                _setStateTime(() {
+              onWillPop: ()async{
+                _setStateTime((){
                   cooldown = false;
                 });
                 return true;
@@ -444,33 +429,41 @@ class _RegisterSheetState extends State<RegisterSheet> {
                   ),
                   FlatButton(
                     child: cooldown
-                        ? FittedBox(child: Text("Resent"))
+                        ? FittedBox(
+                            child: Text("Resent"))
                         : FittedBox(child: Text("Resend")),
                     onPressed: cooldown
                         ? null
-                        : () async {
-                            //Start timer
-                            _setStateTime(() {
-                              cooldown = true;
-                            });
-                            //Send Verification Code Function
-                            await FirebaseAuth.instance.verifyPhoneNumber(
-                                phoneNumber: hp,
-                                timeout: Duration(seconds: 30),
-                                verificationCompleted: (authCredential) =>
-                                    _veriComplete(authCredential, name, hp),
-                                verificationFailed: (authException) =>
-                                    _veriFailed(authException),
-                                codeSent: (verificationId, [code]) =>
-                                    _onCodeSent(
-                                        verificationId, [code], name, hp),
-                                codeAutoRetrievalTimeout:
-                                    (verificationId, [code]) => _onCodeSent(
-                                        verificationId, [code], name, hp));
+                        : () async{
+                      //Start timer
+                      _setStateTime(() {
+                        cooldown = true;
+                      });
+                      //Send Verification Code Function
+                      await FirebaseAuth.instance.verifyPhoneNumber(
+                          phoneNumber:
+                          hp,
+                          timeout: Duration(seconds: 30),
+                          verificationCompleted:
+                              (authCredential) =>
+                              _veriComplete(
+                                  authCredential,name,hp),
+                          verificationFailed:
+                              (authException) =>
+                              _veriFailed(
+                                  authException),
+                          codeSent: (verificationId,
+                              [code]) =>
+                              _onCodeSent(
+                                  verificationId, [code],name,hp),
+                          codeAutoRetrievalTimeout:
+                              (verificationId, [code]) =>
+                              _onCodeSent(verificationId,
+                                  [code],name,hp));
 
-                            _setStateTime(() {
-                              cooldown = true;
-                            });
+                      _setStateTime((){
+                        cooldown = true;
+                      });
                           },
                   )
                 ],
@@ -493,4 +486,5 @@ class _RegisterSheetState extends State<RegisterSheet> {
         codeAutoRetrievalTimeout: (verificationId, [code]) =>
             _onCodeSent(verificationId, [code], name, hp));
   }
+
 }

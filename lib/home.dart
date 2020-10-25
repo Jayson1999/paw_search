@@ -120,7 +120,7 @@ class _State extends State<Home> {
               });
 
           //Sign Out false user without register at first
-          _auth.signOutUser();
+          await _auth.signOutUser();
         } else {
           //Sign in User and write UID to SharedPreferences
           pref = await SharedPreferences.getInstance();
