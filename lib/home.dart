@@ -82,11 +82,12 @@ class _State extends State<Home> {
   //function to check for validated user
   checkUser() async {
     await _auth.getCurrentUser().then((value) async {
-      await Firestore.instance
-          .collection("User")
-          .document(value.uid.toString())
-          .get()
-          .then((_value) async {
+      await Future.delayed(Duration(seconds: 2), () async{
+        await Firestore.instance
+            .collection("User")
+            .document(value.uid.toString())
+            .get()
+            .then((_value) async {
         if (_value.data == null) {
           showDialog(
               context: context,
@@ -130,7 +131,9 @@ class _State extends State<Home> {
           print(_user.name);
           print(_user.hp);
         }
+        });
       });
+
     });
     return true;
   }

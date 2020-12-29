@@ -262,7 +262,7 @@ public class OpenCVActivity extends FragmentActivity  {
                                         //Start comparing every bitmap in openCV function
                                         double result = startComparison(resource);
                                         Log.i("COMPARE", result + "");
-                                        //TODO: Filter lower percentage
+
                                         //Only when the percentage is above 50% and is higher than the highest
                                         if (result > highestMatch && result > 50) {
                                             //conduct replacement of highest percentage
@@ -582,6 +582,14 @@ public class OpenCVActivity extends FragmentActivity  {
             loading.setTextColor(Color.parseColor("#FF5252"));
             loading.setTextSize(16);
             matchPerc.setText("No Confident Match Found!");
+            report.setVisibility(View.VISIBLE);
+            report.setEnabled(true);
+            report.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    reportDialog();
+                }
+            });
         }
 
     }

@@ -389,6 +389,9 @@ class _RegisterSheetState extends State<RegisterSheet> {
 
                       //Pass field validation
                       else {
+                        Navigator.pop(context);
+                        bool error = false;
+                        String errorMsg = "";
                         AuthCredential _credential =
                             await PhoneAuthProvider.getCredential(
                                 verificationId: _verificationCode,
@@ -396,6 +399,7 @@ class _RegisterSheetState extends State<RegisterSheet> {
                         await FirebaseAuth.instance
                             .signInWithCredential(_credential)
                             .catchError((onError) {
+                              error = true;
                           showDialog(
                             context: context,
                             builder: (BuildContext context) {
@@ -423,6 +427,28 @@ class _RegisterSheetState extends State<RegisterSheet> {
                               );
                             },
                           );
+                        }).then((value) async {
+                          if(!error){
+                            if (value.user != null) {
+                              String addToDB = await Database(value.user.uid).setUser(name, hp);
+                              //On DB side error
+                              if (addToDB != "OK") {
+                                error = true;
+                                errorMsg = addToDB;
+                              }
+                            } else {
+                              error = true;
+                              errorMsg = "Sign In Failed! No User Found after Sign up!";
+                            }
+                            //show error message
+                            if (error) {
+                              Fluttertoast.showToast(
+                                  msg: "Registration Failed! Reason: " + errorMsg,
+                                  backgroundColor: Colors.redAccent,
+                                  textColor: Colors.white,
+                                  toastLength: Toast.LENGTH_LONG);
+                            }
+                          }
                         });
                       }
                     },
